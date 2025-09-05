@@ -1,0 +1,69 @@
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Go workspace file
+go.work
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Binaries
+bin/
+dist/
+
+# Dependencies
+vendor/
+
+# Frontend specific
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.cache/
+frontend/coverage/
+frontend/.env
+frontend/.env.*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Local development config
+config.local.yaml
+config.dev.yaml
+
+# Coverage reports
+coverage/
+coverage.txt
+profile.out
