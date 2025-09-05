@@ -9,7 +9,7 @@ import (
 )
 
 func Connect() *sql.DB {
-	connStr := "postgres://postgres:blackfire788?@localhost:5432/clario?sslmode=disable"
+	connStr := "postgres://postgres:blackfire788@localhost:5432/clario?sslmode=disable"
 
 	db, err := sql.Open("postgres", connStr)
 
