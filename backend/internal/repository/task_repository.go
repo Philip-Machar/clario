@@ -10,16 +10,18 @@ type TaskRepository struct {
 	DB *sql.DB
 }
 
+// A function to instantiate TaskRepository struct
 func NewTaskRepository(db *sql.DB) *TaskRepository {
 	return &TaskRepository{DB: db}
 }
 
+// method to insert a new row into postgreSQL
 func (r *TaskRepository) Create(task *models.Task) error {
 	query := `
-        INSERT INTO tasks (title, description, status, priority, due_date)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, created_at, updated_at
-    `
+		INSERT INTO tasks (title, description, status, priority, due_date)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at
+	`
 	return r.DB.QueryRow(query,
 		task.Title,
 		task.Description,
@@ -29,12 +31,9 @@ func (r *TaskRepository) Create(task *models.Task) error {
 	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
 }
 
+// method to get data of all the rows in our tasks table
 func (r *TaskRepository) GetAll() ([]models.Task, error) {
-	rows, err := r.DB.Query(`
-        SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at
-        FROM tasks
-        ORDER BY id DESC
-    `)
+	rows, err := r.DB.Query(`SELECT id, title description, status, priority, due_date, created_at, updated_at FROM tasks ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +52,7 @@ func (r *TaskRepository) GetAll() ([]models.Task, error) {
 		if due.Valid {
 			t.DueDate = &due.Time
 		}
+
 		if completed.Valid {
 			t.CompletedAt = &completed.Time
 		}
@@ -63,5 +63,6 @@ func (r *TaskRepository) GetAll() ([]models.Task, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
 	return tasks, nil
 }
