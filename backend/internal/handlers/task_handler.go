@@ -32,13 +32,14 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if payload.Title == "" {
-		http.Error(w, "title is required", http.StatusBadRequest)
+		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
 	if payload.Status == "" {
 		payload.Status = "todo"
 	}
+
 	if payload.Priority == "" {
 		payload.Priority = "medium"
 	}
@@ -52,7 +53,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Repo.Create(&task); err != nil {
-		http.Error(w, "failed to create task: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create a task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -61,13 +62,14 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.Repo.GetAll()
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		http.Error(w, "Failed to fetch tasks: "+err.Error(), http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tasks)
 }
