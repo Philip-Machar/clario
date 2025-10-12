@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/Philip-Machar/clario/internal/db"
+	"github.com/Philip-Machar/clario/internal/handlers"
+	"github.com/Philip-Machar/clario/internal/repository"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -22,6 +24,12 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK it works"))
 	})
+
+	repo := repository.NewTaskRepository(database)
+	handler := handlers.NewTaskHandler(repo)
+
+	r.Post("/task", handler.Create)
+	r.Get("/tasks", handler.GetAll)
 
 	//starting server and listening ap port 8080
 	fmt.Println("Server running on http://localhost:8080...")

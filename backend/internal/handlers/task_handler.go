@@ -17,7 +17,7 @@ func NewTaskHandler(repo *repository.TaskRepository) *TaskHandler {
 	return &TaskHandler{Repo: repo}
 }
 
-func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Title       string     `json:"title"`
 		Description string     `json:"description"`
@@ -62,7 +62,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-func (h *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.Repo.GetAll()
 
 	if err != nil {
