@@ -30,6 +30,7 @@ func main() {
 
 	r.Post("/task", handler.Create)
 	r.Get("/tasks", handler.GetAll)
+	r.Delete("/task/{id}", handler.Delete)
 
 	//starting server and listening ap port 8080
 	fmt.Println("Server running on http://localhost:8080...")

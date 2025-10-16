@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Philip-Machar/clario/internal/models"
 	"github.com/Philip-Machar/clario/internal/repository"
+	"github.com/go-chi/chi/v5"
 )
 
 type TaskHandler struct {
@@ -66,10 +68,34 @@ func (h *TaskHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.Repo.GetAll()
 
 	if err != nil {
-		http.Error(w, "Failed to fetch tasks: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to get tasks: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tasks)
+}
+
+func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.Repo.Delete(id)
+
+	if err != nil {
+		http.Error(w, "Failed to Delete task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"message": "Task deleted successfully"}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }

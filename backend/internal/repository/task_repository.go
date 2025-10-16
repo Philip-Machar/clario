@@ -33,7 +33,7 @@ func (r *TaskRepository) Create(task *models.Task) error {
 
 // method to get data of all the rows in our tasks table
 func (r *TaskRepository) GetAll() ([]models.Task, error) {
-	rows, err := r.DB.Query(`SELECT id, title, description, status, priority, due_date, created_at, updated_at FROM tasks ORDER BY id DESC`)
+	rows, err := r.DB.Query(`SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -65,4 +65,16 @@ func (r *TaskRepository) GetAll() ([]models.Task, error) {
 	}
 
 	return tasks, nil
+}
+
+func (r *TaskRepository) Delete(id int) error {
+	query := `DELETE FROM tasks WHERE id = $1`
+
+	_, err := r.DB.Exec(query, id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
