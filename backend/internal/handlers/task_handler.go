@@ -99,3 +99,88 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		http.Error(w, "Invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Title       string     `json:"title"`
+		Description string     `json:"description"`
+		Status      string     `json:"status"`
+		Priority    string     `json:"priority"`
+		DueDate     *time.Time `json:"due_date"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body"+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	task := models.Task{
+		ID:          id,
+		Title:       payload.Title,
+		Description: payload.Description,
+		Status:      payload.Status,
+		Priority:    payload.Priority,
+		DueDate:     payload.DueDate,
+	}
+
+	if err := h.Repo.Update(&task); err != nil {
+		http.Error(w, "Failed to update task"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(task)
+}
+
+func (h *TaskHandler) MarkAsInProgress(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		http.Error(w, "Invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Repo.MarkAsInProgress(id); err != nil {
+		http.Error(w, "Failed to update status", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"message": "status updated to in progress"}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *TaskHandler) MarkAsComplete(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		http.Error(w, "Invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Repo.MarkAsComplete(id); err != nil {
+		http.Error(w, "Failed to update status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"message": "task marked as complete"}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}

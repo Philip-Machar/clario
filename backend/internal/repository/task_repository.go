@@ -78,3 +78,32 @@ func (r *TaskRepository) Delete(id int) error {
 
 	return nil
 }
+
+func (r *TaskRepository) Update(task *models.Task) error {
+	query := `
+		UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, updated_at = NOW()
+		WHERE id = $6
+		RETURNING updated_at
+	`
+	return r.DB.QueryRow(query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.Priority,
+		task.DueDate,
+		task.ID,
+	).Scan(&task.UpdatedAt)
+}
+
+func (r *TaskRepository) MarkAsInProgress(id int) error {
+	query := `UPDATE tasks SET status = 'in_progress', updated_at = NOW() WHERE id = $1`
+	_, err := r.DB.Exec(query, id)
+
+	return err
+}
+
+func (r *TaskRepository) MarkAsComplete(id int) error {
+	query := `UPDATE tasks SET status = 'complete', completed_at = NOW(), updated_at = NOW() WHERE id = $1`
+	_, err := r.DB.Exec(query, id)
+	return err
+}
