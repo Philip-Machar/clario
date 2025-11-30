@@ -32,8 +32,8 @@ func main() {
 	r.Get("/tasks", handler.GetAll)
 	r.Delete("/task/{id}", handler.Delete)
 	r.Put("/task/{id}", handler.Update)
-	r.Put("/task/{id}/in_progress", handler.MarkAsInProgress)
-	r.Put("/task/{id}/complete", handler.MarkAsComplete)
+	r.Put("/task/{id}/status", handler.UpdateStatus)
+	r.Get("/streak", handler.GetCurrentStreaks)
 
 	//starting server and listening ap port 8080
 	fmt.Println("Server running on http://localhost:8080...")

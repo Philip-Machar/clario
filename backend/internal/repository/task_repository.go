@@ -2,6 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/Philip-Machar/clario/internal/models"
 )
@@ -95,15 +97,63 @@ func (r *TaskRepository) Update(task *models.Task) error {
 	).Scan(&task.UpdatedAt)
 }
 
-func (r *TaskRepository) MarkAsInProgress(id int) error {
-	query := `UPDATE tasks SET status = 'in_progress', updated_at = NOW() WHERE id = $1`
-	_, err := r.DB.Exec(query, id)
+func (r *TaskRepository) UpdateStatus(id int, status string) error {
+	var query string
+
+	if status == "complete" {
+		query = `UPDATE tasks SET status = $1, updated_at = NOW(), completed_at = NOW() WHERE id = $2`
+	} else {
+		query = `UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2`
+	}
+
+	_, err := r.DB.Exec(query, status, id)
 
 	return err
 }
 
-func (r *TaskRepository) MarkAsComplete(id int) error {
-	query := `UPDATE tasks SET status = 'complete', completed_at = NOW(), updated_at = NOW() WHERE id = $1`
-	_, err := r.DB.Exec(query, id)
-	return err
+func (r *TaskRepository) GetCurrentStreaks() (int, error) {
+	query := `
+		SELECT DATE(completed_at), COUNT(*)
+		FROM tasks
+		WHERE completed_at IS NOT NULL AND completed_at <= due_date
+		GROUP BY DATE(completed_at)
+		ORDER BY DATE(completed_at) DESC;
+	`
+
+	rows, err := r.DB.Query(query)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer rows.Close()
+
+	var streak int
+	var lastDay time.Time
+
+	for rows.Next() {
+		var day time.Time
+		var count int
+
+		fmt.Println("Rows: ", rows)
+
+		if err := rows.Scan(&day, &count); err != nil {
+			return 0, err
+		}
+
+		if streak == 0 {
+			streak = 1
+			lastDay = day
+			continue
+		}
+
+		if day.Equal(lastDay.AddDate(0, 0, -1)) {
+			streak++
+			lastDay = day
+		} else {
+			break
+		}
+	}
+
+	return streak, nil
 }
