@@ -173,7 +173,15 @@ func (h *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TaskHandler) GetCurrentStreaks(w http.ResponseWriter, r *http.Request) {
-	streak, err := h.Repo.GetCurrentStreaks()
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		http.Error(w, "Invalid ID: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	streak, err := h.Repo.GetCurrentStreaks(id)
 
 	if err != nil {
 		http.Error(w, "Failed to get streaks: "+err.Error(), http.StatusInternalServerError)

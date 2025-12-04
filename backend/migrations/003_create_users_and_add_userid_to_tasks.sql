@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE tasks
+    ADD COLUMN IF NOT EXISTS user_id INT NOT NULL;
+
+ALTER TABLE tasks
+    ADD CONSTRAINT fk_tasks_user
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+

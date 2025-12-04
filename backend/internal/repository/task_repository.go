@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/Philip-Machar/clario/internal/models"
@@ -111,16 +110,16 @@ func (r *TaskRepository) UpdateStatus(id int, status string) error {
 	return err
 }
 
-func (r *TaskRepository) GetCurrentStreaks() (int, error) {
+func (r *TaskRepository) GetCurrentStreaks(userID int) (int, error) {
 	query := `
 		SELECT DATE(completed_at), COUNT(*)
 		FROM tasks
-		WHERE completed_at IS NOT NULL AND completed_at <= due_date
+		WHERE completed_at IS NOT NULL AND completed_at <= due_date AND user_id = $1
 		GROUP BY DATE(completed_at)
 		ORDER BY DATE(completed_at) DESC;
 	`
 
-	rows, err := r.DB.Query(query)
+	rows, err := r.DB.Query(query, userID)
 
 	if err != nil {
 		return 0, err
@@ -134,8 +133,6 @@ func (r *TaskRepository) GetCurrentStreaks() (int, error) {
 	for rows.Next() {
 		var day time.Time
 		var count int
-
-		fmt.Println("Rows: ", rows)
 
 		if err := rows.Scan(&day, &count); err != nil {
 			return 0, err
