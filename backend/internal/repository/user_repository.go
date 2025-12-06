@@ -22,7 +22,7 @@ func (r *UserRepository) Create(user *models.User) error {
 		user.Email,
 		user.PasswordHash,
 		user.Name,
-	).Scan(&user.ID, &user.CreatedAt, user.UpdatedAt)
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 }
 
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
