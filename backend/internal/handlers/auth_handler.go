@@ -78,6 +78,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err := user.CheckPassword(payload.Password); err != nil {
 		http.Error(w, "Invalid email or password"+err.Error(), http.StatusUnauthorized)
+		return
 	}
 
 	token, err := utils.GenerateToken(int64(user.ID))

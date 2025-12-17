@@ -11,13 +11,13 @@ import (
 
 var jwtSecret = []byte(os.Getenv("JWT_SECRETE"))
 
-type MyClaims struct {
+type UserClaims struct {
 	UserID int64 `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
 func GenerateToken(userID int64) (string, error) {
-	claims := MyClaims{
+	claims := UserClaims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
@@ -32,7 +32,7 @@ func GenerateToken(userID int64) (string, error) {
 }
 
 func ValidateToken(tokenString string) (int64, error) {
-	var claims MyClaims
+	var claims UserClaims
 
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
