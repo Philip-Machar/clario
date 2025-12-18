@@ -6,8 +6,10 @@ import (
 
 	"github.com/Philip-Machar/clario/internal/db"
 	"github.com/Philip-Machar/clario/internal/handlers"
+	authMiddleware "github.com/Philip-Machar/clario/internal/middleware"
 	"github.com/Philip-Machar/clario/internal/repository"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -16,24 +18,36 @@ func main() {
 	database := db.Connect()
 	defer database.Close()
 
+	//Repositories
+	taskRepo := repository.NewTaskRepository(database)
+	userRepo := repository.NewUserRepository(database)
+
+	//Handlers
+	taskHandler := handlers.NewTaskHandler(taskRepo)
+	authHandler := handlers.NewAuthHandler(userRepo)
+
 	//create a new router
 	r := chi.NewRouter()
 
-	//create a get test route
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK it works"))
+	//Global Middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	//PUBLIC ROUTES
+	r.Post("/register", authHandler.RegisterUser)
+	r.Post("/login", authHandler.Login)
+
+	//PROCTECTED ROUTES (token required)
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+
+		r.Post("/register", taskHandler.Create)
+		r.Get("/tasks", taskHandler.GetAll)
+		r.Delete("/task/{id}", taskHandler.Delete)
+		r.Put("/task/{id}", taskHandler.Update)
+		r.Put("/task/{id}/status", taskHandler.UpdateStatus)
+		r.Get("/streak", taskHandler.GetCurrentStreaks)
 	})
-
-	repo := repository.NewTaskRepository(database)
-	handler := handlers.NewTaskHandler(repo)
-
-	r.Post("/task", handler.Create)
-	r.Get("/tasks", handler.GetAll)
-	r.Delete("/task/{id}", handler.Delete)
-	r.Put("/task/{id}", handler.Update)
-	r.Put("/task/{id}/status", handler.UpdateStatus)
-	r.Get("/streak/{id}", handler.GetCurrentStreaks)
 
 	//starting server and listening ap port 8080
 	fmt.Println("Server running on http://localhost:8080...")
