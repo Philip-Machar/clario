@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTs tasks (
     id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN('todo', 'in_progress', 'complete')),

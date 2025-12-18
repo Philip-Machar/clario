@@ -19,7 +19,7 @@ func NewTaskRepository(db *sql.DB) *TaskRepository {
 // method to insert a new row into postgreSQL
 func (r *TaskRepository) Create(task *models.Task) error {
 	query := `
-		INSERT INTO tasks (title, description, status, priority, due_date)
+		INSERT INTO tasks (title, description, status, priority, due_date, user_id)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`
@@ -29,12 +29,16 @@ func (r *TaskRepository) Create(task *models.Task) error {
 		task.Status,
 		task.Priority,
 		task.DueDate,
+		task.UserID,
 	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
 }
 
 // method to get data of all the rows in our tasks table
-func (r *TaskRepository) GetAll() ([]models.Task, error) {
-	rows, err := r.DB.Query(`SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks ORDER BY id DESC`)
+func (r *TaskRepository) GetAll(userID int) ([]models.Task, error) {
+	query := `SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks WHERE user_id = $1 ORDER BY id DESC`
+
+	rows, err := r.DB.Query(query, userID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +72,10 @@ func (r *TaskRepository) GetAll() ([]models.Task, error) {
 	return tasks, nil
 }
 
-func (r *TaskRepository) Delete(id int) error {
-	query := `DELETE FROM tasks WHERE id = $1`
+func (r *TaskRepository) Delete(id, userID int) error {
+	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
 
-	_, err := r.DB.Exec(query, id)
+	_, err := r.DB.Exec(query, id, userID)
 
 	if err != nil {
 		return err
@@ -83,7 +87,7 @@ func (r *TaskRepository) Delete(id int) error {
 func (r *TaskRepository) Update(task *models.Task) error {
 	query := `
 		UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, updated_at = NOW()
-		WHERE id = $6
+		WHERE id = $6 AND user_id = $7
 		RETURNING updated_at
 	`
 	return r.DB.QueryRow(query,
@@ -93,19 +97,20 @@ func (r *TaskRepository) Update(task *models.Task) error {
 		task.Priority,
 		task.DueDate,
 		task.ID,
+		task.UserID,
 	).Scan(&task.UpdatedAt)
 }
 
-func (r *TaskRepository) UpdateStatus(id int, status string) error {
+func (r *TaskRepository) UpdateStatus(id int, status string, userID int) error {
 	var query string
 
 	if status == "complete" {
-		query = `UPDATE tasks SET status = $1, updated_at = NOW(), completed_at = NOW() WHERE id = $2`
+		query = `UPDATE tasks SET status = $1, updated_at = NOW(), completed_at = NOW() WHERE id = $2 AND user_id = $3`
 	} else {
-		query = `UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2`
+		query = `UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
 	}
 
-	_, err := r.DB.Exec(query, status, id)
+	_, err := r.DB.Exec(query, status, id, userID)
 
 	return err
 }

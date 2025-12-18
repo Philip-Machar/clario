@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Philip-Machar/clario/internal/middleware"
 	"github.com/Philip-Machar/clario/internal/models"
 	"github.com/Philip-Machar/clario/internal/repository"
 	"github.com/go-chi/chi/v5"
@@ -20,6 +21,12 @@ func NewTaskHandler(repo *repository.TaskRepository) *TaskHandler {
 }
 
 func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	var payload struct {
 		Title       string     `json:"title"`
 		Description string     `json:"description"`
@@ -47,6 +54,7 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := models.Task{
+		UserID:      int(userIDFromContext),
 		Title:       payload.Title,
 		Description: payload.Description,
 		Status:      payload.Status,
@@ -65,7 +73,14 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TaskHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	tasks, err := h.Repo.GetAll()
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tasks, err := h.Repo.GetAll(int(userIDFromContext))
 
 	if err != nil {
 		http.Error(w, "Failed to get tasks: "+err.Error(), http.StatusInternalServerError)
@@ -81,12 +96,19 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
 	}
 
-	err = h.Repo.Delete(id)
+	err = h.Repo.Delete(id, int(userIDFromContext))
 
 	if err != nil {
 		http.Error(w, "Failed to Delete task: "+err.Error(), http.StatusInternalServerError)
@@ -101,6 +123,13 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	idParam := chi.URLParam(r, "id")
 
 	id, err := strconv.Atoi(idParam)
@@ -124,6 +153,7 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := models.Task{
+		UserID:      int(userIDFromContext),
 		ID:          id,
 		Title:       payload.Title,
 		Description: payload.Description,
@@ -146,6 +176,13 @@ func (h *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if err != nil {
 		http.Error(w, "Invalid task id", http.StatusBadRequest)
 		return
@@ -160,7 +197,7 @@ func (h *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Repo.UpdateStatus(id, payload.Status); err != nil {
+	if err := h.Repo.UpdateStatus(id, payload.Status, int(userIDFromContext)); err != nil {
 		http.Error(w, "Failed to update status: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -173,15 +210,14 @@ func (h *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TaskHandler) GetCurrentStreaks(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
 
-	if err != nil {
-		http.Error(w, "Invalid ID: "+err.Error(), http.StatusBadRequest)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	streak, err := h.Repo.GetCurrentStreaks(id)
+	streak, err := h.Repo.GetCurrentStreaks(int(userIDFromContext))
 
 	if err != nil {
 		http.Error(w, "Failed to get streaks: "+err.Error(), http.StatusInternalServerError)

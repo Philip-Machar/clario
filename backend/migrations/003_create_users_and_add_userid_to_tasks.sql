@@ -7,10 +7,3 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE tasks
-    ADD COLUMN IF NOT EXISTS user_id INT NOT NULL;
-
-ALTER TABLE tasks
-    ADD CONSTRAINT fk_tasks_user
-    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
-
