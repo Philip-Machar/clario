@@ -20,7 +20,7 @@ func NewTaskRepository(db *sql.DB) *TaskRepository {
 func (r *TaskRepository) Create(task *models.Task) error {
 	query := `
 		INSERT INTO tasks (title, description, status, priority, due_date, user_id)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at
 	`
 	return r.DB.QueryRow(query,

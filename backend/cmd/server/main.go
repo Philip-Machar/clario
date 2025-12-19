@@ -34,14 +34,14 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	//PUBLIC ROUTES
-	r.Post("/register", authHandler.RegisterUser)
+	r.Post("/register/user", authHandler.RegisterUser)
 	r.Post("/login", authHandler.Login)
 
 	//PROCTECTED ROUTES (token required)
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 
-		r.Post("/register", taskHandler.Create)
+		r.Post("/create/task", taskHandler.Create)
 		r.Get("/tasks", taskHandler.GetAll)
 		r.Delete("/task/{id}", taskHandler.Delete)
 		r.Put("/task/{id}", taskHandler.Update)
