@@ -11,3 +11,13 @@ type ChatMessage struct {
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// Chat request struct for the API
+type ChatRequest struct {
+	Message string `json:"message"`
+}
+
+// AI response struct for the API
+type ChatResponse struct {
+	Response string `json:"response"`
+}
