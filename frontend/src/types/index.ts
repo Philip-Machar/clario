@@ -19,12 +19,13 @@ export interface Task {
 }
 
 // 3. The API Response Contracts
-// This helps Axios know what to expect when we log in or chat.
+// response when you log in
 export interface AuthResponse {
     token: string;
     user: User;
 }
 
+//response during chat
 export interface ChatResponse {
     response: string;
 }
