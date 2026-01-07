@@ -1,22 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthResponse } from '../types';
-import api from '../services/api';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User } from '../types';
 
 // 1. The Shape of our Context
-// This defines what data the "Radio Station" broadcasts.
 interface AuthContextType {
-    user: User | null;         // Who is logged in? (null if nobody)
-    token: string | null;      // The JWT Access Key
-    isAuthenticated: boolean;  // A quick check: True/False
-    isLoading: boolean;        // Are we still checking local storage?
-    login: (token: string, user: User) => void; // Function to log in
-    logout: () => void;                         // Function to log out
+    user: User | null;         
+    token: string | null;      
+    isAuthenticated: boolean;  
+    isLoading: boolean;        
+    login: (token: string, user: User) => void; 
+    logout: () => void;                         
 }
 
 // Create the Context with a default empty state
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 2. The Provider (The Actual Radio Tower)
+// 2. The Provider 
 // This component wraps your entire app.
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -58,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         <AuthContext.Provider value={{ 
             user, 
             token, 
-            isAuthenticated: !!token, // Converts string to boolean (true if token exists)
+            isAuthenticated: !!token, 
             isLoading, 
             login, 
             logout 
@@ -68,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-// 3. The Custom Hook (The Receiver)
+// 3. The Custom Hook
 // This is a shortcut so we don't have to write "useContext(AuthContext)" every time.
 // We just write "useAuth()".
 export const useAuth = () => {
