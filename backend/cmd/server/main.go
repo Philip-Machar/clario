@@ -48,7 +48,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	//PUBLIC ROUTES
-	r.Post("/register/user", authHandler.RegisterUser)
+	r.Post("/register", authHandler.RegisterUser)
 	r.Post("/login", authHandler.Login)
 
 	//PROCTECTED ROUTES (token required)
