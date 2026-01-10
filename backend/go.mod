@@ -10,6 +10,7 @@ require (
 require golang.org/x/crypto v0.46.0
 
 require (
+	github.com/go-chi/cors v1.2.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/generative-ai-go v0.20.1
 	github.com/joho/godotenv v1.5.1

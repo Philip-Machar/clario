@@ -90,7 +90,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"token": token,
-		"name":  user.Name,
+		"user": map[string]any{
+			"id":       user.ID,
+			"username": user.Name,
+			"email":    user.Email,
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
