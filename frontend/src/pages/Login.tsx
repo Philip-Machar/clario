@@ -18,7 +18,7 @@ const Login = () => {
         setIsSubmitting(true);
 
         try {
-            const data = await loginUser({ email, password });
+            const data = await loginUser({ email: email, password: password });
             login(data.token, data.user);
             
             // Redirect to Dashboard
