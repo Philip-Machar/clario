@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(newToken);
         setUser(newUser);
         
-        // 2. Save to Storage (Browser memory - persists after refresh)
+        // 2. Save to Storage 
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(newUser));
     };
