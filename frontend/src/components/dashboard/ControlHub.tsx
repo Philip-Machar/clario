@@ -1,85 +1,127 @@
-import { FC, useMemo } from 'react';
-import type { Task } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { FC, useState, useEffect, useRef } from 'react';
 
-interface ControlHubProps {
-  tasks: Task[] | null | undefined;
+interface Task {
+  id: number;
+  title: string;
+  status: string;
 }
 
-const ControlHub: FC<ControlHubProps> = () => {
-  const { user } = useAuth();
-  
-  // Generate heatmap data for monthly progress visualization
-  const heatmapData = useMemo(() => {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const currentDay = now.getDate();
-    const firstDayOfWeek = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-    
-    // Generate realistic dummy data with variation
-    const dailyData = Array.from({ length: daysInMonth }, (_, index) => {
-      const day = index + 1;
-      
-      // No data for future days
-      if (day > currentDay) return 0;
-      
-      // Create a pattern with some variation
-      const dayOfWeek = new Date(now.getFullYear(), now.getMonth(), day).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
-      // Base value with some randomness
-      let value = isWeekend 
-        ? Math.floor(Math.random() * 4) // 0-3 for weekends
-        : Math.floor(Math.random() * 10) + 3; // 3-12 for weekdays
-      
-      // Add some peak days
-      if (day % 7 === 0) value += Math.floor(Math.random() * 5); // Boost every week
-      if (day === currentDay) value = Math.floor(Math.random() * 8) + 5; // Today's activity
-      
-      return value;
-    });
-    
-    // Organize into weeks (7 columns)
-    const weeks: number[][] = [];
-    let currentWeek: number[] = [];
-    
-    // Add empty cells for days before the 1st
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      currentWeek.push(-1); // -1 means empty/invalid
-    }
-    
-    dailyData.forEach((value) => {
-      currentWeek.push(value);
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
+interface ControlHubProps {
+  tasks?: Task[] | null;
+}
+
+const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
+  const user = { username: 'Machar' };
+  const safeTasks = tasks ?? [];
+  const todayProgress = 0; // Replace with actual calculation
+
+  // Focus timer state
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [focusMinutes, setFocusMinutes] = useState(25);
+  const [timeRemaining, setTimeRemaining] = useState(25 * 60); // in seconds
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editValue, setEditValue] = useState('25');
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown logic
+  useEffect(() => {
+    if (isRunning && !isPaused && timeRemaining > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setIsRunning(false);
+            setIsPaused(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-    });
-    
-    // Add remaining days to last week
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push(-1); // Fill with empty cells
-      }
-      weeks.push(currentWeek);
     }
-    
-    return { weeks, maxValue: Math.max(...dailyData, 1) };
-  }, []);
-  
-  // Get intensity level (0-4) for color coding
-  const getIntensity = (value: number, maxValue: number): number => {
-    if (value <= 0) return 0;
-    const ratio = value / maxValue;
-    if (ratio >= 0.8) return 4;
-    if (ratio >= 0.6) return 3;
-    if (ratio >= 0.4) return 2;
-    if (ratio >= 0.2) return 1;
-    return 1;
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isRunning, isPaused, timeRemaining]);
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate progress percentage for circle
+  const progressPercentage = focusMinutes > 0 
+    ? ((focusMinutes * 60 - timeRemaining) / (focusMinutes * 60)) * 100 
+    : 0;
+
+  // Get incomplete tasks for dropdown
+  const availableTasks = safeTasks.filter(task => task.status !== 'complete');
+
+  const handleStart = () => {
+    if (timeRemaining === 0) {
+      setTimeRemaining(focusMinutes * 60);
+    }
+    setIsRunning(true);
+    setIsPaused(false);
+  };
+
+  const handlePause = () => {
+    setIsPaused(true);
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    setIsRunning(false);
+    setIsPaused(false);
+    setTimeRemaining(focusMinutes * 60);
+  };
+
+  const handleSetTime = (minutes: number) => {
+    if (!isRunning && !isPaused) {
+      setFocusMinutes(minutes);
+      setTimeRemaining(minutes * 60);
+    }
+  };
+
+  const handleTimeClick = () => {
+    if (!isRunning && !isPaused) {
+      setIsEditingTime(true);
+      setEditValue(focusMinutes.toString());
+    }
+  };
+
+  const handleTimeBlur = () => {
+    const minutes = parseInt(editValue);
+    if (!isNaN(minutes) && minutes > 0 && minutes <= 999) {
+      setFocusMinutes(minutes);
+      setTimeRemaining(minutes * 60);
+    } else {
+      setEditValue(focusMinutes.toString());
+    }
+    setIsEditingTime(false);
+  };
+
+  const handleTimeKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTimeBlur();
+    } else if (e.key === 'Escape') {
+      setEditValue(focusMinutes.toString());
+      setIsEditingTime(false);
+    }
   };
 
   return (
-    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 flex flex-col gap-3 h-full overflow-hidden">
+    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 flex flex-col gap-2 h-full overflow-hidden">
       <div className="flex items-center gap-4">
         <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-400/80 via-cyan-400/80 to-sky-500/80 flex items-center justify-center text-sm font-semibold text-slate-950">
           {user?.username?.[0]?.toUpperCase() ?? 'C'}
@@ -89,35 +131,130 @@ const ControlHub: FC<ControlHubProps> = () => {
             Control Hub
           </div>
           <div className="mt-1 text-sm text-slate-200 line-clamp-1">
-            Level 5 Achiever
+            Today's Progress
           </div>
           <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800/90 overflow-hidden">
-            <div className="h-full w-[64%] bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200" />
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200 transition-all duration-500"
+              style={{ width: `${todayProgress}%` }}
+            />
+          </div>
+          <div className="mt-1 text-xs text-slate-400 text-right">
+            {todayProgress}%
           </div>
         </div>
       </div>
 
-      {/* Focus timer (static visual for now) */}
-      <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-4 py-3 flex flex-col gap-2">
+      {/* Focus timer */}
+      <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-4 py-3 flex flex-col gap-3">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Focus Mode</span>
           <span className="uppercase tracking-[0.16em] text-emerald-300">
-            Deep
+            {isRunning ? 'Active' : isPaused ? 'Paused' : 'Ready'}
           </span>
         </div>
-        <div className="relative mx-auto mt-1 mb-1 h-20 w-20">
-          <div className="absolute inset-0 rounded-full bg-slate-900" />
-          <div className="absolute inset-1 rounded-full bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900" />
-          <div className="absolute inset-1.5 rounded-full border border-slate-700/70" />
-          <div className="absolute inset-2 rounded-full bg-slate-950 flex items-center justify-center">
-            <span className="text-lg font-semibold text-slate-50">
-              25:00
-            </span>
+
+        {/* Task selection */}
+        {availableTasks.length > 0 && (
+          <div>
+            <label className="block text-[10px] text-slate-500 mb-1">Select Task</label>
+            <select
+              value={selectedTaskId || ''}
+              onChange={(e) => setSelectedTaskId(e.target.value ? parseInt(e.target.value) : null)}
+              disabled={isRunning || isPaused}
+              className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 py-1 pr-8 text-[11px] text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '12px 8px'
+              }}
+            >
+              <option value="" className="bg-slate-900 text-slate-100">No task selected</option>
+              {availableTasks.map(task => (
+                <option key={task.id} value={task.id} className="bg-slate-900 text-slate-100">
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Timer display */}
+        <div 
+          className={`relative mx-auto h-16 w-16 ${!isRunning && !isPaused ? 'cursor-pointer' : ''}`}
+          onClick={handleTimeClick}
+        >
+          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="rgba(51, 65, 85, 0.3)"
+              strokeWidth="8"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 45}`}
+              strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercentage / 100)}`}
+              className="transition-all duration-1000 ease-linear"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {isEditingTime ? (
+              <input
+                type="number"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleTimeBlur}
+                onKeyDown={handleTimeKeyDown}
+                autoFocus
+                className="w-12 text-center text-lg font-semibold text-slate-50 bg-transparent border-b border-emerald-400 outline-none"
+                min="1"
+                max="999"
+              />
+            ) : (
+              <span className="text-lg font-semibold text-slate-50">
+                {formatTime(timeRemaining)}
+              </span>
+            )}
           </div>
         </div>
-        <button className="mt-0.5 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-xs font-semibold py-2 transition-colors">
-          Start focus session
-        </button>
+
+        {/* Control buttons */}
+        <div className="flex gap-1.5">
+          {!isRunning && !isPaused ? (
+            <button
+              onClick={handleStart}
+              disabled={timeRemaining === 0}
+              className="flex-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-[11px] font-semibold py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Start
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={isPaused ? handleStart : handlePause}
+                className="flex-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-[11px] font-semibold py-1.5 transition-colors"
+              >
+                {isPaused ? 'Resume' : 'Pause'}
+              </button>
+              <button
+                onClick={handleReset}
+                className="flex-1 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800/80 text-slate-300 text-[11px] font-semibold py-1.5 transition-colors"
+              >
+                Reset
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Monthly Progress Heatmap */}
@@ -138,8 +275,8 @@ const ControlHub: FC<ControlHubProps> = () => {
             <span>More</span>
           </div>
         </div>
-        <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 flex-1 min-h-0 flex flex-col">
-          <div className="space-y-1 flex-1 min-h-0">
+        <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 flex flex-col">
+          <div className="space-y-1">
             {/* Day labels */}
             <div className="flex gap-1 mb-2">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
@@ -150,14 +287,18 @@ const ControlHub: FC<ControlHubProps> = () => {
             </div>
             
             {/* Heatmap grid */}
-            <div className="space-y-1 flex-1 min-h-0 overflow-y-auto custom-scroll">
-              {heatmapData.weeks.map((week, weekIdx) => (
+            <div className="space-y-1">
+              {[
+                [0, 0, 0, 8, 10, 12, 5],
+                [7, 11, 9, 13, 10, 8, 3],
+                [6, 10, 12, 11, 14, 9, 4],
+                [8, 9, 11, 0, 0, 0, 0]
+              ].map((week, weekIdx) => (
                 <div key={weekIdx} className="flex gap-1">
                   {week.map((value, dayIdx) => {
-                    const dayNumber = weekIdx * 7 + dayIdx - (new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay()) + 1;
-                    const isToday = dayNumber === new Date().getDate() && value >= 0;
-                    const intensity = getIntensity(value, heatmapData.maxValue);
-                    const isValid = value >= 0;
+                    const isToday = weekIdx === 3 && dayIdx === 3;
+                    const isValid = value > 0 || isToday;
+                    const intensity = value <= 0 ? 0 : value >= 12 ? 4 : value >= 9 ? 3 : value >= 6 ? 2 : 1;
                     
                     return (
                       <div
@@ -177,11 +318,7 @@ const ControlHub: FC<ControlHubProps> = () => {
                             ? 'bg-emerald-500/70 hover:bg-emerald-500/80'
                             : 'bg-emerald-500 hover:bg-emerald-400'
                         }`}
-                        title={
-                          isValid
-                            ? `${dayNumber} tasks completed: ${value}`
-                            : ''
-                        }
+                        title={isValid ? `${value} tasks completed` : ''}
                       />
                     );
                   })}
@@ -197,11 +334,7 @@ const ControlHub: FC<ControlHubProps> = () => {
                 This Month
               </div>
               <div className="text-sm font-semibold text-slate-200 mt-0.5">
-                {heatmapData.weeks
-                  .flat()
-                  .filter(v => v >= 0)
-                  .reduce((a, b) => a + b, 0)}{' '}
-                tasks
+                104 tasks
               </div>
             </div>
             <div className="text-right">
@@ -209,18 +342,7 @@ const ControlHub: FC<ControlHubProps> = () => {
                 Current Streak
               </div>
               <div className="text-sm font-semibold text-emerald-400 mt-0.5">
-                {(() => {
-                  const today = new Date().getDate();
-                  let streak = 0;
-                  for (let i = today; i >= 1; i--) {
-                    const dayValue = heatmapData.weeks
-                      .flat()
-                      .filter(v => v >= 0)[i - 1];
-                    if (dayValue > 0) streak++;
-                    else break;
-                  }
-                  return `${streak} days`;
-                })()}
+                17 days
               </div>
             </div>
           </div>
