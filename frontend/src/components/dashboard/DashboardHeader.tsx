@@ -8,7 +8,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader: FC<DashboardHeaderProps> = ({ user, onLogout }) => {
   return (
-    <header className="flex items-center justify-between px-10 pt-6 pb-4">
+    <header className="flex items-center justify-between px-10 pt-4 pb-2">
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-xs font-semibold tracking-widest">
           CL

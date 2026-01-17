@@ -22,8 +22,8 @@ const MentorChat: FC<MentorChatProps> = ({
   isSending,
 }) => {
   return (
-    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-5 flex flex-col">
-      <header className="flex items-center justify-between mb-3">
+    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-4 flex flex-col h-full overflow-hidden">
+      <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-sky-400 via-emerald-300 to-cyan-400 flex items-center justify-center text-xs font-semibold text-slate-950">
             CL
@@ -32,7 +32,7 @@ const MentorChat: FC<MentorChatProps> = ({
             <div className="text-[11px] uppercase tracking-[0.26em] text-slate-500">
               Mentor
             </div>
-            <div className="text-sm text-slate-100">Online • Clario</div>
+            <div className="text-xs text-slate-300">Online • Clario</div>
           </div>
         </div>
         <span className="rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 border border-emerald-400/60">
@@ -40,11 +40,11 @@ const MentorChat: FC<MentorChatProps> = ({
         </span>
       </header>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 space-y-2 text-xs custom-scroll">
+      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll">
         {messages.length === 0 && (
           <div className="text-[11px] text-slate-500 leading-relaxed">
-            Tell your mentor what you’re planning to finish in the next 25
-            minutes. You’ll get a short, direct response based on your
+            Tell your mentor what you're planning to finish in the next 25
+            minutes. You'll get a short, direct response based on your
             actual tasks.
           </div>
         )}
@@ -76,13 +76,17 @@ const MentorChat: FC<MentorChatProps> = ({
         )}
       </div>
 
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-2 flex items-end gap-2">
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
-          rows={2}
-          placeholder="Tell Clario what you finished, what slipped, or what you’re committing to next."
-          className="flex-1 resize-none rounded-2xl bg-slate-900/80 border border-slate-800/90 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 custom-scroll"
+          rows={1}
+          placeholder="Type your message..."
+          className="flex-1 resize-none rounded-xl bg-slate-900/80 border border-slate-800/90 px-3 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 overflow-y-auto"
+          style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(51, 65, 85, 0.4) transparent'
+          }}
         />
         <button
           onClick={onSend}
@@ -97,4 +101,3 @@ const MentorChat: FC<MentorChatProps> = ({
 };
 
 export default MentorChat;
-
