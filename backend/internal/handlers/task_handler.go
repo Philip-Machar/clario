@@ -232,3 +232,27 @@ func (h *TaskHandler) GetCurrentStreaks(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *TaskHandler) GetMonthlyHeatmap(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	heatmapData, err := h.Repo.GetMonthlyHeatmapData(int(userIDFromContext))
+
+	if err != nil {
+		http.Error(w, "Failed to get heatmap data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"heatmap": heatmapData,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}

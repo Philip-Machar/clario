@@ -71,6 +71,7 @@ func main() {
 		r.Put("/task/{id}", taskHandler.Update)
 		r.Put("/task/{id}/status", taskHandler.UpdateStatus)
 		r.Get("/streak", taskHandler.GetCurrentStreaks)
+		r.Get("/heatmap", taskHandler.GetMonthlyHeatmap)
 		r.Post("/chat", aiHandler.ChatWithMentor)
 	})
 

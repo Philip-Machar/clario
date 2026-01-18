@@ -156,37 +156,81 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="h-screen bg-[#050712] text-slate-50 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#050712] text-slate-50 flex flex-col">
       <DashboardHeader user={user} onLogout={logout} />
       <TodaysOverview tasks={tasks} isLoading={isLoadingTasks} />
 
-      {/* Main grid */}
-      <main className="flex-1 px-10 pb-4 grid grid-cols-[minmax(260px,280px)_minmax(0,1.6fr)_minmax(260px,320px)] gap-4 min-h-0">
-        <ControlHub tasks={tasks} />
+      {/* Main grid - Responsive Layout */}
+      <main className="flex-1 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pb-3 sm:pb-4 overflow-auto">
+        <div className="max-w-[1920px] mx-auto h-full">
+          {/* Mobile: Stacked layout */}
+          {/* Tablet: 2 columns */}
+          {/* Desktop: 3 columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,280px)_minmax(0,1.6fr)_minmax(260px,320px)] gap-3 sm:gap-4 h-full">
+            
+            {/* Left Sidebar - ControlHub (Hidden on mobile by default, shown in modal or tab) */}
+            <div className="hidden lg:block lg:h-full lg:min-h-[600px]">
+              <ControlHub tasks={tasks} />
+            </div>
 
-        <TaskBoard
-          tasks={tasks}
-          isLoading={isLoadingTasks}
-          onCreateTask={handleCreateTask}
-          isCreating={isCreatingTask}
-          newTaskTitle={newTaskTitle}
-          newTaskDescription={newTaskDescription}
-          newTaskPriority={newTaskPriority}
-          setNewTaskTitle={setNewTaskTitle}
-          setNewTaskDescription={setNewTaskDescription}
-          setNewTaskPriority={setNewTaskPriority}
-          onStatusChange={handleStatusChange}
-          onUpdateTask={handleUpdateTask}
-          onDeleteTask={handleDeleteTask}
-        />
+            {/* Center - TaskBoard (Always visible, main content) */}
+            <div className="h-full min-h-[500px] lg:min-h-[600px]">
+              <TaskBoard
+                tasks={tasks}
+                isLoading={isLoadingTasks}
+                onCreateTask={handleCreateTask}
+                isCreating={isCreatingTask}
+                newTaskTitle={newTaskTitle}
+                newTaskDescription={newTaskDescription}
+                newTaskPriority={newTaskPriority}
+                setNewTaskTitle={setNewTaskTitle}
+                setNewTaskDescription={setNewTaskDescription}
+                setNewTaskPriority={setNewTaskPriority}
+                onStatusChange={handleStatusChange}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+              />
+            </div>
 
-        <MentorChat
-          messages={mentorMessages}
-          input={mentorInput}
-          setInput={setMentorInput}
-          onSend={handleSendMentor}
-          isSending={isSendingMentor}
-        />
+            {/* Right Sidebar - MentorChat */}
+            <div className="hidden xl:block xl:h-full xl:min-h-[600px]">
+              <MentorChat
+                messages={mentorMessages}
+                input={mentorInput}
+                setInput={setMentorInput}
+                onSend={handleSendMentor}
+                isSending={isSendingMentor}
+              />
+            </div>
+          </div>
+
+          {/* Mobile: Show ControlHub and MentorChat as collapsible sections below TaskBoard */}
+          <div className="lg:hidden mt-4 space-y-4">
+            <div className="min-h-[400px]">
+              <ControlHub tasks={tasks} />
+            </div>
+            <div className="xl:hidden min-h-[400px]">
+              <MentorChat
+                messages={mentorMessages}
+                input={mentorInput}
+                setInput={setMentorInput}
+                onSend={handleSendMentor}
+                isSending={isSendingMentor}
+              />
+            </div>
+          </div>
+
+          {/* Tablet (lg): Show MentorChat below when not in 3-column mode */}
+          <div className="hidden lg:block xl:hidden mt-4 min-h-[400px]">
+            <MentorChat
+              messages={mentorMessages}
+              input={mentorInput}
+              setInput={setMentorInput}
+              onSend={handleSendMentor}
+              isSending={isSendingMentor}
+            />
+          </div>
+        </div>
       </main>
 
       {/* Edit Task Modal */}

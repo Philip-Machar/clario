@@ -53,3 +53,14 @@ export const fetchCurrentStreak = async (): Promise<number> => {
   return response.data.streak;
 };
 
+// Heatmap data structure
+export interface HeatmapResponse {
+  heatmap: { [date: string]: number };
+}
+
+// Get monthly heatmap data
+export const fetchMonthlyHeatmap = async (): Promise<{ [date: string]: number }> => {
+  const response = await api.get<HeatmapResponse>('/heatmap');
+  return response.data.heatmap;
+};
+

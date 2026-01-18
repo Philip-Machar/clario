@@ -115,6 +115,48 @@ func (r *TaskRepository) UpdateStatus(id int, status string, userID int) error {
 	return err
 }
 
+// GetMonthlyHeatmapData returns daily task completion counts for the last 28 days
+func (r *TaskRepository) GetMonthlyHeatmapData(userID int) (map[string]int, error) {
+	// Get data for the last 28 days
+	query := `
+		SELECT DATE(completed_at) as completion_date, COUNT(*) as task_count
+		FROM tasks
+		WHERE user_id = $1 
+		  AND completed_at IS NOT NULL
+		  AND completed_at >= NOW() - INTERVAL '28 days'
+		GROUP BY DATE(completed_at)
+		ORDER BY DATE(completed_at) DESC
+	`
+
+	rows, err := r.DB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Map date strings to task counts
+	heatmapData := make(map[string]int)
+
+	for rows.Next() {
+		var date time.Time
+		var count int
+
+		if err := rows.Scan(&date, &count); err != nil {
+			return nil, err
+		}
+
+		// Format date as YYYY-MM-DD
+		dateStr := date.Format("2006-01-02")
+		heatmapData[dateStr] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return heatmapData, nil
+}
+
 func (r *TaskRepository) GetCurrentStreaks(userID int) (int, error) {
 	query := `
 		SELECT DATE(completed_at), COUNT(*)

@@ -89,43 +89,81 @@ const TaskBoard: FC<TaskBoardProps> = ({
         </button>
       </header>
 
-      {/* Quick add row */}
-      <div className="mb-3 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_120px] gap-2 text-xs">
-        <input
-          value={newTaskTitle}
-          onChange={e => setNewTaskTitle(e.target.value)}
-          placeholder="New task title"
-          className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
-        />
-        <input
-          value={newTaskDescription}
-          onChange={e => setNewTaskDescription(e.target.value)}
-          placeholder="Optional description"
-          className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
-        />
-        <div className="relative">
-          <select
-            value={newTaskPriority}
-            onChange={e =>
-              setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')
-            }
-            className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 pr-8 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-              backgroundSize: '12px 8px'
-            }}
-          >
-            <option value="low" className="bg-slate-900 text-slate-100">Low</option>
-            <option value="medium" className="bg-slate-900 text-slate-100">Medium</option>
-            <option value="high" className="bg-slate-900 text-slate-100">High</option>
-          </select>
+      {/* Quick add row - Responsive */}
+      <div className="mb-2 sm:mb-3">
+        {/* Mobile: Stacked layout */}
+        <div className="md:hidden space-y-2">
+          <input
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            placeholder="New task title"
+            className="w-full rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <input
+              value={newTaskDescription}
+              onChange={e => setNewTaskDescription(e.target.value)}
+              placeholder="Description (optional)"
+              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+            />
+            <select
+              value={newTaskPriority}
+              onChange={e =>
+                setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')
+              }
+              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 pr-7 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 8px center',
+                backgroundSize: '10px 6px'
+              }}
+            >
+              <option value="low" className="bg-slate-900 text-slate-100">Low</option>
+              <option value="medium" className="bg-slate-900 text-slate-100">Med</option>
+              <option value="high" className="bg-slate-900 text-slate-100">High</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* Tablet/Desktop: Horizontal layout */}
+        <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_120px] gap-2 text-xs">
+          <input
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            placeholder="New task title"
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <input
+            value={newTaskDescription}
+            onChange={e => setNewTaskDescription(e.target.value)}
+            placeholder="Optional description"
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <div className="relative">
+            <select
+              value={newTaskPriority}
+              onChange={e =>
+                setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')
+              }
+              className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 pr-8 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '12px 8px'
+              }}
+            >
+              <option value="low" className="bg-slate-900 text-slate-100">Low</option>
+              <option value="medium" className="bg-slate-900 text-slate-100">Medium</option>
+              <option value="high" className="bg-slate-900 text-slate-100">High</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Columns */}
-      <div className="flex-1 grid grid-cols-3 gap-2 text-xs min-h-0">
+      {/* Columns - Responsive: Stacked on mobile, 2 cols on tablet, 3 cols on desktop */}
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs min-h-0">
         {(['todo', 'in_progress', 'complete'] as BoardColumnKey[]).map(
           columnKey => {
             const columnTasks = groupedTasks[columnKey];

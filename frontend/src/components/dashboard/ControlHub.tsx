@@ -1,4 +1,5 @@
 import { FC, useState, useEffect, useRef } from 'react';
+import { fetchCurrentStreak, fetchMonthlyHeatmap } from '../../features/tasks/taskService';
 
 interface Task {
   id: number;
@@ -24,6 +25,31 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
   const [isEditingTime, setIsEditingTime] = useState(false);
   const [editValue, setEditValue] = useState('25');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Heatmap and streak state
+  const [heatmapData, setHeatmapData] = useState<{ [date: string]: number }>({});
+  const [currentStreak, setCurrentStreak] = useState<number>(0);
+  const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(true);
+
+  // Fetch heatmap and streak data
+  useEffect(() => {
+    const loadHeatmapData = async () => {
+      try {
+        setIsLoadingHeatmap(true);
+        const [heatmap, streak] = await Promise.all([
+          fetchMonthlyHeatmap(),
+          fetchCurrentStreak()
+        ]);
+        setHeatmapData(heatmap);
+        setCurrentStreak(streak);
+      } catch (error) {
+        console.error('Failed to load heatmap data:', error);
+      } finally {
+        setIsLoadingHeatmap(false);
+      }
+    };
+    loadHeatmapData();
+  }, []);
 
   // Countdown logic
   useEffect(() => {
@@ -51,6 +77,91 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
       }
     };
   }, [isRunning, isPaused, timeRemaining]);
+
+  // Get current month name
+  const getCurrentMonthName = () => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const today = new Date();
+    return monthNames[today.getMonth()];
+  };
+
+  // Transform heatmap data into monthly calendar grid
+  const getHeatmapGrid = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const grid: number[][] = [];
+    
+    // Get first day of the month
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Get last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    const totalDaysInMonth = lastDay.getDate();
+    
+    // Calculate total cells needed (including leading empty cells)
+    const totalCells = firstDayOfWeek + totalDaysInMonth;
+    const totalWeeks = Math.ceil(totalCells / 7);
+    
+    let dayCounter = 1;
+    
+    // Build the calendar grid
+    for (let week = 0; week < totalWeeks; week++) {
+      const weekData: number[] = [];
+      
+      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+        const cellIndex = week * 7 + dayOfWeek;
+        
+        // Empty cells before the first day of the month
+        if (cellIndex < firstDayOfWeek) {
+          weekData.push(-1); // -1 = not part of this month
+        }
+        // Days of the month
+        else if (dayCounter <= totalDaysInMonth) {
+          const currentDate = new Date(year, month, dayCounter);
+          const dateStr = currentDate.toISOString().split('T')[0];
+          weekData.push(heatmapData[dateStr] || 0);
+          dayCounter++;
+        }
+        // Empty cells after the last day of the month
+        else {
+          weekData.push(-1);
+        }
+      }
+      
+      grid.push(weekData);
+    }
+    
+    return grid;
+  };
+
+  // Calculate today's position in the monthly calendar grid
+  const getTodayPosition = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const dayOfMonth = today.getDate();
+    
+    // Get first day of the month to calculate offset
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay();
+    
+    // Calculate position in grid
+    const totalDays = firstDayOfWeek + dayOfMonth - 1; // -1 because day 1 is at index firstDayOfWeek
+    const weekIdx = Math.floor(totalDays / 7);
+    const dayIdx = totalDays % 7;
+    
+    return { weekIdx, dayIdx };
+  };
+
+  // Calculate total tasks this month
+  const getTotalMonthlyTasks = () => {
+    return Object.values(heatmapData).reduce((sum, count) => sum + count, 0);
+  };
 
   // Format time display
   const formatTime = (seconds: number) => {
@@ -121,25 +232,25 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
   };
 
   return (
-    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 flex flex-col gap-2 h-full overflow-hidden">
-      <div className="flex items-center gap-4">
-        <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-400/80 via-cyan-400/80 to-sky-500/80 flex items-center justify-center text-sm font-semibold text-slate-950">
+    <section className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-3 sm:p-4 flex flex-col gap-2 h-full overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-400/80 via-cyan-400/80 to-sky-500/80 flex items-center justify-center text-xs sm:text-sm font-semibold text-slate-950">
           {user?.username?.[0]?.toUpperCase() ?? 'C'}
         </div>
         <div className="flex-1">
-          <div className="text-xs uppercase tracking-[0.28em] text-slate-500">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.20em] sm:tracking-[0.28em] text-slate-500">
             Control Hub
           </div>
-          <div className="mt-1 text-sm text-slate-200 line-clamp-1">
+          <div className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-200 line-clamp-1">
             Today's Progress
           </div>
-          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800/90 overflow-hidden">
+          <div className="mt-1 sm:mt-2 h-1 sm:h-1.5 w-full rounded-full bg-slate-800/90 overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200 transition-all duration-500"
               style={{ width: `${todayProgress}%` }}
             />
           </div>
-          <div className="mt-1 text-xs text-slate-400 text-right">
+          <div className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 text-right">
             {todayProgress}%
           </div>
         </div>
@@ -261,7 +372,7 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
       <div className="mt-1 space-y-2 flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between">
           <div className="text-xs font-medium text-slate-400 uppercase tracking-[0.18em]">
-            Monthly Progress
+            {getCurrentMonthName()} Progress
           </div>
           <div className="flex items-center gap-2 text-[10px] text-slate-500">
             <span>Less</span>
@@ -288,42 +399,46 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
             
             {/* Heatmap grid */}
             <div className="space-y-1">
-              {[
-                [0, 0, 0, 8, 10, 12, 5],
-                [7, 11, 9, 13, 10, 8, 3],
-                [6, 10, 12, 11, 14, 9, 4],
-                [8, 9, 11, 0, 0, 0, 0]
-              ].map((week, weekIdx) => (
-                <div key={weekIdx} className="flex gap-1">
-                  {week.map((value, dayIdx) => {
-                    const isToday = weekIdx === 3 && dayIdx === 3;
-                    const isValid = value > 0 || isToday;
-                    const intensity = value <= 0 ? 0 : value >= 12 ? 4 : value >= 9 ? 3 : value >= 6 ? 2 : 1;
-                    
-                    return (
-                      <div
-                        key={dayIdx}
-                        className={`flex-1 aspect-square rounded transition-all duration-200 ${
-                          !isValid
-                            ? 'bg-transparent'
-                            : isToday
-                            ? 'ring-2 ring-emerald-400/60 ring-offset-1 ring-offset-slate-900'
-                            : intensity === 0
-                            ? 'bg-slate-800/60'
-                            : intensity === 1
-                            ? 'bg-emerald-500/30 hover:bg-emerald-500/40'
-                            : intensity === 2
-                            ? 'bg-emerald-500/50 hover:bg-emerald-500/60'
-                            : intensity === 3
-                            ? 'bg-emerald-500/70 hover:bg-emerald-500/80'
-                            : 'bg-emerald-500 hover:bg-emerald-400'
-                        }`}
-                        title={isValid ? `${value} tasks completed` : ''}
-                      />
-                    );
-                  })}
+              {isLoadingHeatmap ? (
+                <div className="flex items-center justify-center py-8 text-xs text-slate-500">
+                  Loading heatmap...
                 </div>
-              ))}
+              ) : (
+                getHeatmapGrid().map((week, weekIdx) => {
+                  const todayPos = getTodayPosition();
+                  return (
+                    <div key={weekIdx} className="flex gap-1">
+                      {week.map((value, dayIdx) => {
+                        const isToday = weekIdx === todayPos.weekIdx && dayIdx === todayPos.dayIdx;
+                        const isValid = value >= 0; // -1 means future date
+                        const intensity = value <= 0 ? 0 : value >= 12 ? 4 : value >= 9 ? 3 : value >= 6 ? 2 : 1;
+                        
+                        return (
+                          <div
+                            key={dayIdx}
+                            className={`flex-1 aspect-square rounded transition-all duration-200 ${
+                              !isValid
+                                ? 'bg-transparent'
+                                : isToday
+                                ? 'ring-2 ring-emerald-400/60 ring-offset-1 ring-offset-slate-900 bg-emerald-500/' + (intensity === 0 ? '20' : intensity === 1 ? '30' : intensity === 2 ? '50' : intensity === 3 ? '70' : '100')
+                                : intensity === 0
+                                ? 'bg-slate-800/60'
+                                : intensity === 1
+                                ? 'bg-emerald-500/30 hover:bg-emerald-500/40'
+                                : intensity === 2
+                                ? 'bg-emerald-500/50 hover:bg-emerald-500/60'
+                                : intensity === 3
+                                ? 'bg-emerald-500/70 hover:bg-emerald-500/80'
+                                : 'bg-emerald-500 hover:bg-emerald-400'
+                            }`}
+                            title={isValid && value > 0 ? `${value} tasks completed` : isValid && value === 0 ? 'No tasks completed' : ''}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
           
@@ -334,7 +449,7 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
                 This Month
               </div>
               <div className="text-sm font-semibold text-slate-200 mt-0.5">
-                104 tasks
+                {isLoadingHeatmap ? '...' : `${getTotalMonthlyTasks()} tasks`}
               </div>
             </div>
             <div className="text-right">
@@ -342,7 +457,7 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
                 Current Streak
               </div>
               <div className="text-sm font-semibold text-emerald-400 mt-0.5">
-                17 days
+                {isLoadingHeatmap ? '...' : `${currentStreak} day${currentStreak !== 1 ? 's' : ''}`}
               </div>
             </div>
           </div>
