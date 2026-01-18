@@ -197,13 +197,6 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
     setTimeRemaining(focusMinutes * 60);
   };
 
-  const handleSetTime = (minutes: number) => {
-    if (!isRunning && !isPaused) {
-      setFocusMinutes(minutes);
-      setTimeRemaining(minutes * 60);
-    }
-  };
-
   const handleTimeClick = () => {
     if (!isRunning && !isPaused) {
       setIsEditingTime(true);
