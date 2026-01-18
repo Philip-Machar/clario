@@ -11,9 +11,11 @@ interface TaskBoardProps {
   newTaskTitle: string;
   newTaskDescription: string;
   newTaskPriority: 'low' | 'medium' | 'high';
+  newTaskDueDate: string;
   setNewTaskTitle: (value: string) => void;
   setNewTaskDescription: (value: string) => void;
   setNewTaskPriority: (value: 'low' | 'medium' | 'high') => void;
+  setNewTaskDueDate: (value: string) => void;
   onStatusChange: (task: Task, status: BoardColumnKey) => void;
   onUpdateTask?: (task: Task) => void;
   onDeleteTask?: (taskId: number) => void;
@@ -27,9 +29,11 @@ const TaskBoard: FC<TaskBoardProps> = ({
   newTaskTitle,
   newTaskDescription,
   newTaskPriority,
+  newTaskDueDate,
   setNewTaskTitle,
   setNewTaskDescription,
   setNewTaskPriority,
+  setNewTaskDueDate,
   onStatusChange,
   onUpdateTask,
   onDeleteTask,
@@ -99,12 +103,18 @@ const TaskBoard: FC<TaskBoardProps> = ({
             placeholder="New task title"
             className="w-full rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
           />
-          <div className="grid grid-cols-[1fr_auto] gap-2">
+          <input
+            value={newTaskDescription}
+            onChange={e => setNewTaskDescription(e.target.value)}
+            placeholder="Description (optional)"
+            className="w-full rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <div className="grid grid-cols-2 gap-2">
             <input
-              value={newTaskDescription}
-              onChange={e => setNewTaskDescription(e.target.value)}
-              placeholder="Description (optional)"
-              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+              type="date"
+              value={newTaskDueDate}
+              onChange={e => setNewTaskDueDate(e.target.value)}
+              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
             />
             <select
               value={newTaskPriority}
@@ -127,7 +137,7 @@ const TaskBoard: FC<TaskBoardProps> = ({
         </div>
         
         {/* Tablet/Desktop: Horizontal layout */}
-        <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_120px] gap-2 text-xs">
+        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_130px_100px] gap-2 text-xs">
           <input
             value={newTaskTitle}
             onChange={e => setNewTaskTitle(e.target.value)}
@@ -139,6 +149,12 @@ const TaskBoard: FC<TaskBoardProps> = ({
             onChange={e => setNewTaskDescription(e.target.value)}
             placeholder="Optional description"
             className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <input
+            type="date"
+            value={newTaskDueDate}
+            onChange={e => setNewTaskDueDate(e.target.value)}
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
           />
           <div className="relative">
             <select

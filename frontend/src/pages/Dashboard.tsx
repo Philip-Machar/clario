@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
 
   // Edit task state
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -64,16 +65,28 @@ const Dashboard = () => {
     if (!newTaskTitle.trim()) return;
     try {
       setIsCreatingTask(true);
+      
+      // Convert date string to ISO 8601 format with time (end of day in user's timezone)
+      let formattedDueDate: string | null = null;
+      if (newTaskDueDate) {
+        const date = new Date(newTaskDueDate);
+        // Set to end of day (23:59:59) in user's local timezone
+        date.setHours(23, 59, 59, 999);
+        formattedDueDate = date.toISOString();
+      }
+      
       const created = await createTask({
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim(),
         priority: newTaskPriority,
         status: 'todo',
+        due_date: formattedDueDate,
       });
       setTasks(prev => [created, ...prev]);
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskPriority('medium');
+      setNewTaskDueDate('');
     } catch (error) {
       console.error('Failed to create task', error);
     } finally {
@@ -183,9 +196,11 @@ const Dashboard = () => {
                 newTaskTitle={newTaskTitle}
                 newTaskDescription={newTaskDescription}
                 newTaskPriority={newTaskPriority}
+                newTaskDueDate={newTaskDueDate}
                 setNewTaskTitle={setNewTaskTitle}
                 setNewTaskDescription={setNewTaskDescription}
                 setNewTaskPriority={setNewTaskPriority}
+                setNewTaskDueDate={setNewTaskDueDate}
                 onStatusChange={handleStatusChange}
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
