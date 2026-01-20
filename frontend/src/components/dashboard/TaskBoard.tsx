@@ -207,7 +207,7 @@ const TaskBoard: FC<TaskBoardProps> = ({
                 </div>
 
                 <div 
-                  className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-0 task-column-scroll"
+                  className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-0 max-h-[60vh] task-column-scroll"
                   style={{
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(51, 65, 85, 0.6) transparent'

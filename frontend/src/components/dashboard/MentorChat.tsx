@@ -22,7 +22,7 @@ const MentorChat: FC<MentorChatProps> = ({
   isSending,
 }) => {
   return (
-    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-4 flex flex-col h-full overflow-hidden">
+    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-4 flex flex-col h-full min-h-0 overflow-hidden">
       <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-sky-400 via-emerald-300 to-cyan-400 flex items-center justify-center text-xs font-semibold text-slate-950">
@@ -40,7 +40,7 @@ const MentorChat: FC<MentorChatProps> = ({
         </span>
       </header>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll">
+      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll min-h-0 max-h-[60vh]">
         {messages.length === 0 && (
           <div className="text-[11px] text-slate-500 leading-relaxed">
             Tell your mentor what you're planning to finish in the next 25
