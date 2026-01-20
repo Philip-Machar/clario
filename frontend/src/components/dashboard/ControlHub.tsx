@@ -289,7 +289,7 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
 
         {/* Timer display */}
         <div 
-          className={`relative mx-auto h-16 w-16 ${!isRunning && !isPaused ? 'cursor-pointer' : ''}`}
+          className={`relative mx-auto h-24 w-24 ${!isRunning && !isPaused ? 'cursor-pointer' : ''}`}
           onClick={handleTimeClick}
         >
           <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
