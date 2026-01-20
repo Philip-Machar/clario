@@ -14,7 +14,10 @@ interface ControlHubProps {
 const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
   const user = { username: 'Machar' };
   const safeTasks = tasks ?? [];
-  const todayProgress = 0; // Replace with actual calculation
+  // Calculate today's progress: 100% when all tasks are incomplete, 0% when all are complete
+  const totalTasks = safeTasks.length;
+  const completedTasks = safeTasks.filter(task => task.status === 'complete').length;
+  const todayProgress = totalTasks > 0 ? Math.round(((totalTasks - completedTasks) / totalTasks) * 100) : 0;
 
   // Focus timer state
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
@@ -237,14 +240,16 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
           <div className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-200 line-clamp-1">
             Today's Progress
           </div>
-          <div className="mt-1 sm:mt-2 h-1 sm:h-1.5 w-full rounded-full bg-slate-800/90 overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200 transition-all duration-500"
-              style={{ width: `${todayProgress}%` }}
-            />
-          </div>
-          <div className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 text-right">
-            {todayProgress}%
+          <div className="mt-1 sm:mt-2 flex items-center gap-2">
+            <div className="h-1 sm:h-1.5 flex-1 rounded-full bg-slate-800/90 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200 transition-all duration-500"
+                style={{ width: `${todayProgress}%` }}
+              />
+            </div>
+            <div className="text-[10px] sm:text-xs text-slate-400 min-w-[32px] text-right">
+              {todayProgress}%
+            </div>
           </div>
         </div>
       </div>
@@ -259,30 +264,28 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
         </div>
 
         {/* Task selection */}
-        {availableTasks.length > 0 && (
-          <div>
-            <label className="block text-[10px] text-slate-500 mb-1">Select Task</label>
-            <select
-              value={selectedTaskId || ''}
-              onChange={(e) => setSelectedTaskId(e.target.value ? parseInt(e.target.value) : null)}
-              disabled={isRunning || isPaused}
-              className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 py-1 pr-8 text-[11px] text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-                backgroundSize: '12px 8px'
-              }}
-            >
-              <option value="" className="bg-slate-900 text-slate-100">No task selected</option>
-              {availableTasks.map(task => (
-                <option key={task.id} value={task.id} className="bg-slate-900 text-slate-100">
-                  {task.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="block text-[10px] text-slate-500 mb-1">Select Task</label>
+          <select
+            value={selectedTaskId || ''}
+            onChange={(e) => setSelectedTaskId(e.target.value ? parseInt(e.target.value) : null)}
+            disabled={isRunning || isPaused || availableTasks.length === 0}
+            className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 py-1 pr-8 text-[11px] text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              backgroundSize: '12px 8px'
+            }}
+          >
+            <option value="" className="bg-slate-900 text-slate-100">No task selected</option>
+            {availableTasks.map(task => (
+              <option key={task.id} value={task.id} className="bg-slate-900 text-slate-100">
+                {task.title}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Timer display */}
         <div 
@@ -313,19 +316,34 @@ const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             {isEditingTime ? (
-              <input
-                type="number"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={handleTimeBlur}
-                onKeyDown={handleTimeKeyDown}
-                autoFocus
-                className="w-12 text-center text-lg font-semibold text-slate-50 bg-transparent border-b border-emerald-400 outline-none"
-                min="1"
-                max="999"
-              />
+              <>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleTimeBlur}
+                  onKeyDown={handleTimeKeyDown}
+                  autoFocus
+                  className="w-12 text-center text-lg font-semibold text-slate-50 bg-transparent border-b border-emerald-400 outline-none no-spinner"
+                  min="1"
+                  max="999"
+                  style={{ MozAppearance: 'textfield', paddingTop: '10px', paddingBottom: '10px' }}
+                />
+                <style>{`
+                  input[type=number].no-spinner::-webkit-inner-spin-button,
+                  input[type=number].no-spinner::-webkit-outer-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                  }
+                  input[type=number].no-spinner {
+                    -moz-appearance: textfield;
+                  }
+                `}</style>
+              </>
             ) : (
-              <span className="text-lg font-semibold text-slate-50">
+              <span className="text-lg font-semibold text-slate-50" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
                 {formatTime(timeRemaining)}
               </span>
             )}

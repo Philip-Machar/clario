@@ -97,7 +97,8 @@ const TodaysOverview: FC<TodaysOverviewProps> = ({ tasks, isLoading = false }) =
     // Calculate percentages for each metric
     const donePercentage = total > 0 ? Math.round((allCompleted / total) * 100) : 0;
     const inProgressPercentage = total > 0 ? Math.round((inProgress / total) * 100) : 0;
-    const totalPercentage = total > 0 ? Math.round((allCompleted / total) * 100) : 0; // Completion rate
+    // Remaining tasks percentage: 100% when nothing is done, 0% when all are done
+    const totalPercentage = total > 0 ? Math.round(((total - allCompleted) / total) * 100) : 0;
 
     return {
       completed: completedToday,
