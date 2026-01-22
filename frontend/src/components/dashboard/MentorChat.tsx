@@ -40,7 +40,7 @@ const MentorChat: FC<MentorChatProps> = ({
         </span>
       </header>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll min-h-0 max-h-[60vh]">
+      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll min-h-0">
         {messages.length === 0 && (
           <div className="text-[11px] text-slate-500 leading-relaxed">
             Tell your mentor what you're planning to finish in the next 25

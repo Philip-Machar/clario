@@ -9,11 +9,12 @@ const DAYS_IN_VIEW = 32;
 
 const StreakMatrix: FC<StreakMatrixProps> = ({ streak, isLoading }) => {
   const today = new Date();
-  const currentDay = today.getDate();
 
   return (
     <section className="px-10 pb-4">
       <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 px-6 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-xl flex items-center justify-between">
+        
+        {/* Left info */}
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.25em] text-slate-500 uppercase">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -23,17 +24,23 @@ const StreakMatrix: FC<StreakMatrixProps> = ({ streak, isLoading }) => {
             Consistency over the last {DAYS_IN_VIEW} days
           </div>
         </div>
+
+        {/* Matrix */}
         <div className="flex-1 px-8">
-          <div className="flex items-center gap-1 justify-center">
+          <div className="flex items-center justify-center gap-1">
             {Array.from({ length: DAYS_IN_VIEW }).map((_, idx) => {
-              const day = idx + 1;
-              const isToday = day === currentDay;
-              const isActive =
-                streak !== null && day > currentDay - streak && day <= currentDay;
-              const color = isActive ? 'bg-emerald-500' : 'bg-slate-800/80';
+              // daysAgo: 31 ... 0 (today)
+              const daysAgo = DAYS_IN_VIEW - 1 - idx;
+              const isToday = daysAgo === 0;
+              const isActive = streak !== null && daysAgo < streak;
+
+              const color = isActive
+                ? 'bg-emerald-500'
+                : 'bg-slate-800/80';
+
               return (
                 <div
-                  key={day}
+                  key={idx}
                   className={`h-5 w-5 rounded-md ${color} relative overflow-hidden`}
                 >
                   {isToday && (
@@ -44,6 +51,8 @@ const StreakMatrix: FC<StreakMatrixProps> = ({ streak, isLoading }) => {
             })}
           </div>
         </div>
+
+        {/* Right stats */}
         <div className="flex items-center gap-3">
           <div className="text-right">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -54,10 +63,10 @@ const StreakMatrix: FC<StreakMatrixProps> = ({ streak, isLoading }) => {
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );
 };
 
 export default StreakMatrix;
-
