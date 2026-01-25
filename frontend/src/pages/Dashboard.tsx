@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { Task } from '../types';
 import { fetchTasks, updateTaskStatus, createTask, updateTask, deleteTask } from '../features/tasks/taskService';
@@ -18,6 +18,9 @@ const Dashboard = () => {
   const [mentorMessages, setMentorMessages] = useState<MentorMessage[]>([]);
   const [mentorInput, setMentorInput] = useState('');
   const [isSendingMentor, setIsSendingMentor] = useState(false);
+  
+  // Track if greeting has been sent to prevent duplicates
+  const hasGreetedRef = useRef(false);
 
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -32,7 +35,6 @@ const Dashboard = () => {
   const [editTaskPriority, setEditTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [editTaskStatus, setEditTaskStatus] = useState<BoardColumnKey>('todo');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
-  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -48,6 +50,43 @@ const Dashboard = () => {
     };
     load();
   }, []);
+
+  // AI greeting on mount
+  useEffect(() => {
+    // Only send greeting once, even if component re-renders
+    if (hasGreetedRef.current) return;
+    
+    const sendInitialGreeting = async () => {
+      hasGreetedRef.current = true; // Mark as greeted before API call
+      
+      try {
+        // Send a prompt to the AI to generate a personalized greeting
+        const greetingPrompt = "Greet the user as their accountability mentor. Be brief, friendly, and motivating. Ask them what they want to accomplish today. Keep it under 2 sentences.";
+        
+        const res = await sendMentorMessage(greetingPrompt);
+        
+        setMentorMessages([
+          {
+            id: `mentor-${Date.now()}`,
+            from: 'mentor',
+            text: res.response
+          }
+        ]);
+      } catch (error) {
+        console.error('Failed to send initial greeting:', error);
+        // Fallback to a simple greeting if API fails
+        setMentorMessages([
+          {
+            id: `mentor-${Date.now()}`,
+            from: 'mentor',
+            text: "Hey! Ready to make today count? What's on your agenda?"
+          }
+        ]);
+      }
+    };
+    
+    sendInitialGreeting();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const handleStatusChange = async (task: Task, status: BoardColumnKey) => {
     try {
@@ -129,13 +168,10 @@ const Dashboard = () => {
 
   const handleDeleteTask = async (taskId: number) => {
     try {
-      setIsDeletingTask(true);
       await deleteTask(taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
       console.error('Failed to delete task', error);
-    } finally {
-      setIsDeletingTask(false);
     }
   };
 
@@ -174,7 +210,7 @@ const Dashboard = () => {
       <TodaysOverview tasks={tasks} isLoading={isLoadingTasks} />
 
       {/* Main grid - Responsive Layout */}
-      <main className="flex-1 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pb-3 sm:pb-4 overflow-auto">
+      <main className="flex-1 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pb-3 sm:pb-4 overflow-hidden">
         <div className="max-w-[1920px] mx-auto h-full">
           {/* Mobile: Stacked layout */}
           {/* Tablet: 2 columns */}
@@ -208,7 +244,7 @@ const Dashboard = () => {
             </div>
 
             {/* Right Sidebar - MentorChat */}
-            <div className="hidden xl:block xl:h-full xl:min-h-[600px]">
+            <div className="hidden xl:flex xl:flex-col xl:h-full xl:min-h-[600px] xl:max-h-[calc(100vh-200px)]">
               <MentorChat
                 messages={mentorMessages}
                 input={mentorInput}
