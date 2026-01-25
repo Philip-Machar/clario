@@ -80,6 +80,16 @@ const MentorChat: FC<MentorChatProps> = ({
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            // Send message on Enter (without Shift)
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (input.trim() && !isSending) {
+                onSend();
+              }
+            }
+            // Allow Shift+Enter for new line (default behavior)
+          }}
           rows={1}
           placeholder="Type your message..."
           className="flex-1 resize-none rounded-xl bg-slate-900/80 border border-slate-800/90 px-3 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 overflow-y-auto"
