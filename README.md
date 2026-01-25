@@ -139,15 +139,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ---
 
-## 🌟 Acknowledgments
-- Inspired by the best of productivity, habit, and AI tools.
-- Special thanks to all contributors and early users!
-
----
-
-## 📬 Contact
-For questions, feedback, or support, please open an issue or contact the maintainer at [GitHub](https://github.com/Philip-Machar/clario).
-
----
-
 > Clario — Your AI-powered accountability partner for a better you.
