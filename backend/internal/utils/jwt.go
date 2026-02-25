@@ -20,7 +20,7 @@ func GenerateToken(userID int64) (string, error) {
 	claims := UserClaims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), // 30 days for development
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   strconv.FormatInt(userID, 10),
 		},
@@ -43,7 +43,7 @@ func ValidateToken(tokenString string) (int64, error) {
 	})
 
 	if err != nil {
-		return 0, nil
+		return 0, errors.New("token parsing error: " + err.Error())
 	}
 
 	if !token.Valid {

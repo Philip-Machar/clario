@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,9 +25,12 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
 
 	if !ok {
+		log.Println("ERROR: Failed to extract user ID from context")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	log.Printf("Creating task for user ID: %d\n", userIDFromContext)
+
 	var payload struct {
 		Title       string     `json:"title"`
 		Description string     `json:"description"`
@@ -36,11 +40,15 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		log.Printf("ERROR: Failed to decode request body: %v\n", err)
 		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Printf("Decoded payload: Title=%s, Description=%s, Status=%s, Priority=%s\n",
+		payload.Title, payload.Description, payload.Status, payload.Priority)
 
 	if payload.Title == "" {
+		log.Println("ERROR: Title is empty")
 		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
@@ -63,10 +71,12 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Repo.Create(&task); err != nil {
+		log.Printf("ERROR: Failed to create task in repository: %v\n", err)
 		http.Error(w, "Failed to create a task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("Task created successfully with ID: %d\n", task.ID)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(task)

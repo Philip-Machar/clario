@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"log"
 	"time"
 
 	"github.com/Philip-Machar/clario/internal/models"
@@ -23,7 +24,10 @@ func (r *TaskRepository) Create(task *models.Task) error {
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at
 	`
-	return r.DB.QueryRow(query,
+	log.Printf("Executing task creation query: title=%s, userID=%d, status=%s, priority=%s\n",
+		task.Title, task.UserID, task.Status, task.Priority)
+
+	err := r.DB.QueryRow(query,
 		task.Title,
 		task.Description,
 		task.Status,
@@ -31,6 +35,14 @@ func (r *TaskRepository) Create(task *models.Task) error {
 		task.DueDate,
 		task.UserID,
 	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
+
+	if err != nil {
+		log.Printf("Database error during task creation: %v\n", err)
+		return err
+	}
+
+	log.Printf("Task created successfully in DB with ID: %d\n", task.ID)
+	return nil
 }
 
 // method to get data of all the rows in our tasks table

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/Philip-Machar/clario/internal/models"
@@ -87,6 +88,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("User logged in successfully: ID=%d, Email=%s, Token generated (expires in 30 days)\n", user.ID, user.Email)
 
 	response := map[string]interface{}{
 		"token": token,
