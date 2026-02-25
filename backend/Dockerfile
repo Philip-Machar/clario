@@ -10,12 +10,17 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app ./cmd/server
 
+
 # -------- STAGE 2: Run --------
 FROM alpine:latest
 
-WORKDIR /root/
+WORKDIR /app
 
+# copy binary
 COPY --from=builder /app/app .
+
+# copy migrations (THIS WAS MISSING)
+COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 8080
 
