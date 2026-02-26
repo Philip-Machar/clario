@@ -53,17 +53,6 @@ const SignUp = () => {
             </div>
 
             <div className="max-w-md w-full relative z-10 my-6 sm:my-8 md:my-4 lg:my-6">
-                {/* Logo and branding */}
-                <div className="text-center mb-4 sm:mb-6 md:mb-3 lg:mb-4">
-                    <div className="inline-flex items-center justify-center mb-3 md:mb-2">
-                        <div className="h-12 w-12 sm:h-14 sm:w-14 md:h-12 md:w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-base sm:text-lg md:text-base font-bold text-slate-950 shadow-lg shadow-emerald-500/20">
-                            CL
-                        </div>
-                    </div>
-                    <h1 className="text-2xl sm:text-3xl md:text-2xl lg:text-3xl font-bold text-slate-50 mb-1 sm:mb-2 tracking-tight">Create Account</h1>
-                    <p className="text-xs sm:text-sm md:text-xs lg:text-sm text-slate-400">Start your productivity journey with Clario</p>
-                </div>
-
                 {/* Sign up card */}
                 <div className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 sm:p-5 md:p-4 lg:p-5">
                     {error && (

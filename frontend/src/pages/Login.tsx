@@ -39,17 +39,6 @@ const Login = () => {
             </div>
 
             <div className="max-w-md w-full relative z-10 my-4 sm:my-6">
-                {/* Logo and branding */}
-                <div className="text-center mb-6 sm:mb-8">
-                    <div className="inline-flex items-center justify-center mb-4">
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-lg sm:text-xl font-bold text-slate-950 shadow-lg shadow-emerald-500/20">
-                            CL
-                        </div>
-                    </div>
-                    <h1 className="text-3xl sm:text-4xl font-bold text-slate-50 mb-2 tracking-tight">Welcome Back</h1>
-                    <p className="text-sm sm:text-base text-slate-400">Sign in to continue your productivity journey</p>
-                </div>
-
                 {/* Login card */}
                 <div className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-5 sm:p-6 md:p-8">
                     {error && (
