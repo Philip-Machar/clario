@@ -259,21 +259,6 @@ docker-compose up --build
 # Frontend: http://localhost:5173
 ```
 
----
-
-## Running Tests
-
-### Backend Tests
-```bash
-cd backend
-go test ./...
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm run test
-```
 
 ---
 
