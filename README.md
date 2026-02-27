@@ -1,10 +1,37 @@
 # Clario
 
-<div align="center">
+A next-generation productivity and accountability platform designed to help individuals and teams achieve their goals
 
-**Clario** — Your AI-Powered Accountability Partner for Productivity Excellence
+## Key Features
 
-A next-generation productivity and accountability platform designed to help individuals and teams achieve their goals, b#### 4. Deploy to AWS EC2 Backend
+- **AI Mentor Chat** — Get real-time advice, motivation, and accountability from an intelligent AI-powered mentor.
+- **Task Management** — Create, edit, organize, and track tasks with intuitive drag-and-drop boards.
+- **Streak & Heatmap Analytics** — Visualize your consistency with GitHub-style streak heatmaps and monthly progress charts.
+- **Focus Timer** — Built-in Pomodoro-style timer to boost your productivity on selected tasks.
+- **User Authentication** — Secure registration and login with JWT-based sessions.
+- **Responsive Design** — Beautiful, accessible UI optimized for both desktop and mobile devices.
+- **Production-Ready** — Containerized with Docker, scalable infrastructure with AWS support.
+
+---
+
+[Live Demo](https://clario-weld.vercel.app)
+
+## 📸 Screenshots
+
+### Dashboard Overview
+![Dashboard](docs/screenshots/clario-dashboard.png)
+*Main dashboard with task overview, focus timer, and daily statistics*
+
+---
+
+### Technology Mapping
+- **Frontend Hosting**: Vercel (auto-deploys from Git, global CDN, serverless functions)
+- **Backend Hosting**: AWS EC2 (t3.micro or larger Ubuntu instance with Docker)
+- **Database**: Amazon RDS PostgreSQL (managed database with automated backups)
+- **DNS**: Route 53 (domain management and routing)
+- **Monitoring**: CloudWatch (logs, metrics, alerts)
+
+---
 
 **Prerequisites**: AWS EC2 instance running Ubuntu 22.04 LTS
 
@@ -71,24 +98,6 @@ Frontend will be live at: **https://clario-weld.vercel.app**
 
 ---
 
-[Live Demo](https://clario-weld.vercel.app)
-
-</div>
-
----
-
-## ✨ Key Features
-
-- 🤖 **AI Mentor Chat** — Get real-time advice, motivation, and accountability from an intelligent AI-powered mentor.
-- **Task Management** — Create, edit, organize, and track tasks with intuitive drag-and-drop boards.
-- **Streak & Heatmap Analytics** — Visualize your consistency with GitHub-style streak heatmaps and monthly progress charts.
-- **Focus Timer** — Built-in Pomodoro-style timer to boost your productivity on selected tasks.
-- **User Authentication** — Secure registration and login with JWT-based sessions.
-- **Responsive Design** — Beautiful, accessible UI optimized for both desktop and mobile devices.
-- **Production-Ready** — Containerized with Docker, scalable infrastructure with AWS support.
-
----
-
 ## Architecture
 
 ### System Design
@@ -146,13 +155,6 @@ Frontend will be live at: **https://clario-weld.vercel.app**
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### Technology Mapping
-- **Frontend Hosting**: Vercel (auto-deploys from Git, global CDN, serverless functions)
-- **Backend Hosting**: AWS EC2 (t3.micro or larger Ubuntu instance with Docker)
-- **Database**: Amazon RDS PostgreSQL (managed database with automated backups)
-- **DNS**: Route 53 (domain management and routing)
-- **Monitoring**: CloudWatch (logs, metrics, alerts)
 
 ---
 
@@ -369,14 +371,6 @@ Clario leverages **Google Generative AI** to provide:
   - Consistent development and production environments
   - Docker Compose for local multi-container setup
   - Container orchestration on EC2
-
----
-
-## 📸 Screenshots
-
-### Dashboard Overview
-![Dashboard](docs/screenshots/clario-dashboard.png)
-*Main dashboard with task overview, focus timer, and daily statistics*
 
 ---
 
