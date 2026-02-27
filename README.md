@@ -16,7 +16,7 @@ A next-generation productivity and accountability platform designed to help indi
 
 [Live Demo](https://clario-weld.vercel.app)
 
-## 📸 Screenshots
+## Screenshots
 
 ### Dashboard Overview
 ![Dashboard](docs/screenshots/clario-dashboard.png)
@@ -69,7 +69,7 @@ docker run -d \
 curl http://localhost:8000/health
 ```
 
-**Optional**: Set up reverse proxy (Nginx) for SSL:
+Set up reverse proxy (Nginx) for SSL:
 ```bash
 sudo apt install -y nginx
 # Configure nginx as reverse proxy to localhost:8000
@@ -259,21 +259,6 @@ docker-compose up --build
 # Frontend: http://localhost:5173
 ```
 
----
-
-## Running Tests
-
-### Backend Tests
-```bash
-cd backend
-go test ./...
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm run test
-```
 
 ---
 
@@ -365,7 +350,6 @@ Clario leverages **Google Generative AI** to provide:
   - Go application running in Docker containers
   - Elastic IP for static IP address
   - Security groups for network access control
-  - CloudWatch for logging and monitoring
   
 - **Containerization**: [Docker](https://www.docker.com/)
   - Consistent development and production environments
