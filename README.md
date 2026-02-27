@@ -69,7 +69,7 @@ docker run -d \
 curl http://localhost:8000/health
 ```
 
-**Optional**: Set up reverse proxy (Nginx) for SSL:
+Set up reverse proxy (Nginx) for SSL:
 ```bash
 sudo apt install -y nginx
 # Configure nginx as reverse proxy to localhost:8000
