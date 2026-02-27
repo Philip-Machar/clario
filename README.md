@@ -350,7 +350,6 @@ Clario leverages **Google Generative AI** to provide:
   - Go application running in Docker containers
   - Elastic IP for static IP address
   - Security groups for network access control
-  - CloudWatch for logging and monitoring
   
 - **Containerization**: [Docker](https://www.docker.com/)
   - Consistent development and production environments
