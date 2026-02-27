@@ -16,7 +16,7 @@ A next-generation productivity and accountability platform designed to help indi
 
 [Live Demo](https://clario-weld.vercel.app)
 
-## 📸 Screenshots
+## Screenshots
 
 ### Dashboard Overview
 ![Dashboard](docs/screenshots/clario-dashboard.png)
