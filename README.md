@@ -14,6 +14,25 @@ A next-generation productivity and accountability platform designed to help indi
 
 ---
 
+## Tech Stack
+
+### Frontend
+- **Framework**: [React](https://react.dev/) 18+ with TypeScript for type-safe UI development
+- **Build Tool**: [Vite](https://vitejs.dev/) for fast development and optimized builds
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [PostCSS](https://postcss.org/) for modern, responsive design
+- **State Management**: React Context API for auth and global state
+- **HTTP Client**: Custom API service with axios integration
+
+### Backend
+- **Language**: [Go](https://golang.org/) 1.24+ for high-performance server logic
+- **Web Framework**: [Chi](https://github.com/go-chi/chi) for lightweight HTTP routing
+- **Database**: [PostgreSQL](https://www.postgresql.org/) 14+ for reliable data persistence
+- **Authentication**: JWT-based authentication with secure token generation
+- **AI Integration**: Google Generative AI API for intelligent mentor chat functionality
+
+---
+
+
 [Live Demo](https://clario-weld.vercel.app)
 
 ## Screenshots
@@ -279,22 +298,6 @@ Clario leverages **Google Generative AI** to provide:
 - `GET /api/chat/analytics` — Get chat-based productivity insights
 
 ---
-
-## Tech Stack
-
-### Frontend
-- **Framework**: [React](https://react.dev/) 18+ with TypeScript for type-safe UI development
-- **Build Tool**: [Vite](https://vitejs.dev/) for fast development and optimized builds
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [PostCSS](https://postcss.org/) for modern, responsive design
-- **State Management**: React Context API for auth and global state
-- **HTTP Client**: Custom API service with axios integration
-
-### Backend
-- **Language**: [Go](https://golang.org/) 1.24+ for high-performance server logic
-- **Web Framework**: [Chi](https://github.com/go-chi/chi) for lightweight HTTP routing
-- **Database**: [PostgreSQL](https://www.postgresql.org/) 14+ for reliable data persistence
-- **Authentication**: JWT-based authentication with secure token generation
-- **AI Integration**: Google Generative AI API for intelligent mentor chat functionality
 
 ### Infrastructure & DevOps
 - **Frontend Hosting**: [Vercel](https://vercel.com/) for fast, global frontend deployment
