@@ -33,6 +33,26 @@ A next-generation productivity and accountability platform designed to help indi
 
 ---
 
+## Architecture
+
+```
+                AWS EC2 (Linux Server)
+              ┌─────────────────────────┐
+Internet ───▶ │ Nginx (HTTPS Gateway)   │
+              │        ↓                │
+              │ Docker Compose          │
+              │   ├─ Backend Container  │
+              │   └─ Postgres Container │
+              └─────────────────────────┘
+                         ↑
+                 Persistent Volume (DB data)
+
+Frontend (Vercel) talks securely to Nginx
+
+```
+
+---
+
 **Prerequisites**: AWS EC2 instance running Ubuntu 22.04 LTS
 
 ```bash
@@ -95,27 +115,6 @@ vercel
 ```
 
 Frontend will be live at: **https://clario-weld.vercel.app**
-
----
-
-## Architecture
-
-### System Design
-```
-                AWS EC2 (Linux Server)
-              ┌─────────────────────────┐
-Internet ───▶ │ Nginx (HTTPS Gateway)   │
-              │        ↓                │
-              │ Docker Compose          │
-              │   ├─ Backend Container  │
-              │   └─ Postgres Container │
-              └─────────────────────────┘
-                         ↑
-                 Persistent Volume (DB data)
-
-Frontend (Vercel) talks securely to Nginx
-
-```
 
 ---
 
