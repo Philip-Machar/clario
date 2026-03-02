@@ -102,58 +102,19 @@ Frontend will be live at: **https://clario-weld.vercel.app**
 
 ### System Design
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                       Vercel (Frontend)                      │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  React + TypeScript + Vite (Built & Deployed)          │  │
-│  │  - Automatic deployments from Git                      │  │
-│  │  - Global CDN distribution                             │  │
-│  │  - Zero-config HTTPS                                   │  │
-│  │  - Analytics & Performance Monitoring                  │  │
-│  │                                                        │  │
-│  │  https://clario.vercel.app                             │  │
-│  └────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
-                              ↓
-                    (HTTPS API Calls)
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    AWS EC2 (Backend)                        │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │  Ubuntu Instance.                                     │  │
-│  │  ┌──────────────────────────────────────────────────┐ │  │
-│  │  │  Go REST API Service                             │ │  │
-│  │  │  - Task Management Handlers                      │ │  │
-│  │  │  - AI Chat Handlers                              │ │  │
-│  │  │  - Authentication (JWT)                          │ │  │
-│  │  │  - Business Logic & Repositories                 │ │  │
-│  │  │                                                  │ │  │
-│  │  │  Listening on: http://localhost:8000             │ │  │
-│  │  └──────────────────────────────────────────────────┘ │  │
-│  │                                                       │  │
-│  │  Docker Container                                     │  │
-│  │                                                       │  │
-│  │  - Docker Compose for local services                  │  │
-│  │                                                       │  │
-│  │  Security Groups:                                     │  │
-│  │  - Port 8000 (API) - Restricted to app traffic        │  │
-│  │  - Port 5432 (PostgreSQL) - Internal only             │  │
-│  │  - SSH (22) - Restricted IP access                    │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │   PostgreSQL Database                                 │  │
-│  │  ┌──────────────────────────────────────────────────┐ │  │
-│  │  │  - Users Table                                   │ │  │
-│  │  │  - Tasks Table                                   │ │  │
-│  │  │  - Chat History Table                            │ │  │
-│  │  │  - Streaks & Analytics Table                     │ │  │
-│  │  │  - Automated backups & snapshots                 │ │  │
-│  │  │  - Multi-AZ for high availability                │ │  │
-│  │  └──────────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────┘  │                         │                                                             │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+                AWS EC2 (Linux Server)
+              ┌─────────────────────────┐
+Internet ───▶ │ Nginx (HTTPS Gateway)   │
+              │        ↓                │
+              │ Docker Compose          │
+              │   ├─ Backend Container  │
+              │   └─ Postgres Container │
+              └─────────────────────────┘
+                         ↑
+                 Persistent Volume (DB data)
+
+Frontend (Vercel) talks securely to Nginx
+
 ```
 
 ---
