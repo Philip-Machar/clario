@@ -27,9 +27,6 @@ A next-generation productivity and accountability platform designed to help indi
 ### Technology Mapping
 - **Frontend Hosting**: Vercel (auto-deploys from Git, global CDN, serverless functions)
 - **Backend Hosting**: AWS EC2 (t3.micro or larger Ubuntu instance with Docker)
-- **Database**: Amazon RDS PostgreSQL (managed database with automated backups)
-- **DNS**: Route 53 (domain management and routing)
-- **Monitoring**: CloudWatch (logs, metrics, alerts)
 
 ---
 
