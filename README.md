@@ -69,6 +69,31 @@ Frontend (Vercel) talks securely to Nginx
 
 ---
 
+### Project Structure
+
+```
+clario/
+├── backend/          # Go-based REST API, business logic, and database migrations
+│   ├── internal/     # Core services and repositories
+│   ├── migrations/   # SQL migrations for PostgreSQL
+│   ├── go.mod        # Backend dependencies
+│   └── ...
+├── frontend/         # React + TypeScript web client
+│   ├── src/
+│   │   ├── components/   # Reusable UI components (Dashboard, MentorChat, ControlHub, etc.)
+│   │   ├── pages/        # Main pages (Dashboard, Login, SignUp)
+│   │   ├── context/      # React context (Auth, etc.)
+│   │   └── ...
+│   ├── public/       # Static assets
+│   ├── package.json  # Frontend dependencies
+│   └── ...
+├── README.md         # Project documentation
+└── ...
+```
+
+---
+
+
 **Prerequisites**: AWS EC2 instance running Ubuntu 22.04 LTS
 
 ```bash
@@ -131,30 +156,6 @@ vercel
 ```
 
 Frontend will be live at: **https://clario-weld.vercel.app**
-
----
-
-### Project Structure
-
-```
-clario/
-├── backend/          # Go-based REST API, business logic, and database migrations
-│   ├── internal/     # Core services and repositories
-│   ├── migrations/   # SQL migrations for PostgreSQL
-│   ├── go.mod        # Backend dependencies
-│   └── ...
-├── frontend/         # React + TypeScript web client
-│   ├── src/
-│   │   ├── components/   # Reusable UI components (Dashboard, MentorChat, ControlHub, etc.)
-│   │   ├── pages/        # Main pages (Dashboard, Login, SignUp)
-│   │   ├── context/      # React context (Auth, etc.)
-│   │   └── ...
-│   ├── public/       # Static assets
-│   ├── package.json  # Frontend dependencies
-│   └── ...
-├── README.md         # Project documentation
-└── ...
-```
 
 ---
 
