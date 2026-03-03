@@ -6,12 +6,12 @@ Clario is a full-stack task management and accountability platform designed for 
 
 ## Core Features
 
-- **AI Mentor Chat**: Context-aware mentor interface powered by Google Generative AI for task guidance and accountability.
-- **Task Management System**: Drag-and-drop task boards with full CRUD operations and persistent state.
-- **Streak & Activity Analytics**: GitHub-style heatmaps and monthly progress tracking based on user activity history.
-- **Focus Timer**: Integrated Pomodoro-style session timer linked to active tasks.
-- **Authentication & Authorization**: Secure JWT-based authentication with protected routes.
-- **Cloud Deployment**: Containerized with Docker and deployed to AWS behind Nginx.
+- **AI Mentor Chat** - Context-aware mentor interface powered by Google Generative AI for task guidance and accountability.
+- **Task Management System** - Drag and drop task boards with full CRUD operations and persistent state.
+- **Streak & Activity Analytics** - GitHub style heatmaps and monthly progress tracking based on user activity history.
+- **Focus Timer** - Integrated Pomodoro style session timer linked to active tasks.
+- **Authentication & Authorization** - Secure JWT-based authentication with protected routes.
+- **Cloud Deployment** - Containerized with Docker and deployed to AWS behind Nginx.
 
 ---
 
