@@ -1,36 +1,51 @@
 # Clario
 
-A productivity and accountability platform designed to help individuals and teams achieve their goals
+Clario is a full-stack task management and accountability platform designed for consistent execution and measurable progress. It combines structured task workflows, streak-based analytics, and AI-assisted mentorship, deployed as a production-ready cloud application.
 
-## Key Features
+---
 
-- **AI Mentor Chat** — Get real-time advice, motivation, and accountability from an intelligent AI-powered mentor.
-- **Task Management** — Create, edit, organize, and track tasks with intuitive drag-and-drop boards.
-- **Streak & Heatmap Analytics** — Visualize your consistency with GitHub-style streak heatmaps and monthly progress charts.
-- **Focus Timer** — Built-in Pomodoro-style timer to boost your productivity on selected tasks.
-- **User Authentication** — Secure registration and login with JWT-based sessions.
-- **Responsive Design** — Beautiful, accessible UI optimized for both desktop and mobile devices.
-- **Production-Ready** — Containerized with Docker, scalable infrastructure with AWS support.
+## Core Features
+
+- **AI Mentor Chat** — Context-aware mentor interface powered by Google Generative AI for task guidance and accountability.
+- **Task Management System** — Drag-and-drop task boards with full CRUD operations and persistent state.
+- **Streak & Activity Analytics** — GitHub-style heatmaps and monthly progress tracking based on user activity history.
+- **Focus Timer** — Integrated Pomodoro-style session timer linked to active tasks.
+- **Authentication & Authorization** — Secure JWT-based authentication with protected routes.
+- **Cloud Deployment** — Containerized with Docker and deployed to AWS behind Nginx.
+
+---
+
+## Architecture Overview
+
+Clario follows a client-server architecture:
+
+- React frontend consuming RESTful APIs
+- Go backend handling business logic and authentication
+- PostgreSQL for relational data storage
+- Nginx as a reverse proxy in production
+- Docker for containerized deployment
 
 ---
 
 ## Tech Stack
 
 ### Frontend
-- **Framework**: [React](https://react.dev/) 18+ with TypeScript for type-safe UI development
-- **Build Tool**: [Vite](https://vitejs.dev/) for fast development and optimized builds
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [PostCSS](https://postcss.org/) for modern, responsive design
-- **State Management**: React Context API for auth and global state
-- **HTTP Client**: Custom API service with axios integration
+- React (TypeScript)
+- Vite
+- Tailwind CSS
+- Axios
+- React Context API (global state & auth)
 
 ### Backend
-- **Language**: [Go](https://golang.org/) 1.24+ for high-performance server logic
-- **Web Framework**: [Chi](https://github.com/go-chi/chi) for lightweight HTTP routing
-- **Database**: [PostgreSQL](https://www.postgresql.org/) 14+ for reliable data persistence
-- **Authentication**: JWT-based authentication with secure token generation
-- **AI Integration**: Google Generative AI API for intelligent mentor chat functionality
+- Go (Chi router)
+- PostgreSQL
+- JWT Authentication
+- Google Generative AI API integration
 
----
+### Infrastructure
+- Docker
+- AWS
+- Nginx
 
 
 [Live Demo](https://clario-weld.vercel.app)
