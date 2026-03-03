@@ -1,6 +1,6 @@
 # Clario
 
-A next-generation productivity and accountability platform designed to help individuals and teams achieve their goals
+A productivity and accountability platform designed to help individuals and teams achieve their goals
 
 ## Key Features
 
