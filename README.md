@@ -170,8 +170,6 @@ vercel
 # (Vercel integrates directly with GitHub)
 ```
 
-Frontend will be live at: **https://clario-weld.vercel.app**
-
 ---
 
 ## Getting Started
