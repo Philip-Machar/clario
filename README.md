@@ -172,15 +172,6 @@ vercel
 
 ---
 
-## Getting Started
-
-### Prerequisites
-- **Node.js** v18 or higher
-- **Go** v1.24 or higher
-- **PostgreSQL** v14 or higher
-- **Docker** and **Docker Compose** (for containerized development)
-- **Git** for version control
-
 ### Local Development Setup
 
 #### 1. Clone the Repository
