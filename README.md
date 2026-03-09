@@ -15,6 +15,17 @@ Clario is a full-stack task management and accountability platform designed for 
 
 ---
 
+[Live Demo](https://clario-weld.vercel.app)
+
+## Screenshots
+
+### Dashboard Overview
+![Dashboard](docs/screenshots/clario-dashboard.png)
+*Main dashboard with task overview, focus timer, and daily statistics*
+
+---
+
+
 ## Architecture Overview
 
 Clario follows a client-server architecture:
@@ -46,15 +57,6 @@ Clario follows a client-server architecture:
 - Docker
 - AWS
 - Nginx
-
-
-[Live Demo](https://clario-weld.vercel.app)
-
-## Screenshots
-
-### Dashboard Overview
-![Dashboard](docs/screenshots/clario-dashboard.png)
-*Main dashboard with task overview, focus timer, and daily statistics*
 
 ---
 
