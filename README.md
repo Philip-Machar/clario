@@ -4,6 +4,15 @@ Clario is a full-stack task management and accountability platform designed for 
 
 ---
 
+[Live Demo](https://clario-weld.vercel.app)
+
+## Screenshots
+
+### Dashboard Overview
+![Dashboard](docs/screenshots/clario-dashboard.png)
+
+---
+
 ## Core Features
 
 - **AI Mentor Chat** - Context-aware mentor interface powered by Google Generative AI for task guidance and accountability.
@@ -12,15 +21,6 @@ Clario is a full-stack task management and accountability platform designed for 
 - **Focus Timer** - Integrated Pomodoro style session timer linked to active tasks.
 - **Authentication & Authorization** - Secure JWT-based authentication with protected routes.
 - **Cloud Deployment** - Containerized with Docker and deployed to AWS behind Nginx.
-
----
-
-[Live Demo](https://clario-weld.vercel.app)
-
-## Screenshots
-
-### Dashboard Overview
-![Dashboard](docs/screenshots/clario-dashboard.png)
 
 ---
 
