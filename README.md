@@ -59,12 +59,6 @@ Clario follows a client-server architecture:
 
 ---
 
-### Technology Mapping
-- **Frontend Hosting**: Vercel (auto-deploys from Git, global CDN, serverless functions)
-- **Backend Hosting**: AWS EC2 (t3.micro or larger Ubuntu instance with Docker)
-
----
-
 ## Architecture
 
 ```
