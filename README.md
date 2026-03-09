@@ -21,7 +21,6 @@ Clario is a full-stack task management and accountability platform designed for 
 
 ### Dashboard Overview
 ![Dashboard](docs/screenshots/clario-dashboard.png)
-*Main dashboard with task overview, focus timer, and daily statistics*
 
 ---
 
