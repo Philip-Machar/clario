@@ -1,0 +1,4956 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+backend/
+  cmd/
+    server/
+      main.go
+  internal/
+    db/
+      db.go
+    handlers/
+      ai_handler.go
+      auth_handler.go
+      task_handler.go
+    middleware/
+      auth_middleware.go
+    models/
+      chat.go
+      task.go
+      user.go
+    repository/
+      chat_repository.go
+      task_repository.go
+      user_repository.go
+    service/
+      ai_service.go
+    utils/
+      jwt.go
+  migrations/
+    001_create_users.sql
+    002_create_tasks_table.sql
+    003_ai_chats_table.sql
+  docker-compose.yml
+  Dockerfile
+  go.mod
+docs/
+  screenshots/
+    clario-dashboard.png
+frontend/
+  src/
+    components/
+      dashboard/
+        ControlHub.tsx
+        DashboardHeader.tsx
+        FocusTimer.tsx
+        MentorChat.tsx
+        TaskBoard.tsx
+        TodaysOverview.tsx
+        WeeklyFocus.tsx
+      layout/
+        ActionZone.tsx
+        AppShell.tsx
+        DashboardHeader.tsx
+        DataZone.tsx
+        MobileNav.tsx
+        Sidebar.tsx
+      ProtectedRoute.tsx
+    context/
+      AuthContext.tsx
+    features/
+      auth/
+        authService.ts
+      chat/
+        chatService.ts
+      tasks/
+        taskService.ts
+    pages/
+      Dashboard.tsx
+      Login.tsx
+      SignUp.tsx
+    services/
+      api.ts
+    types/
+      index.ts
+    App.tsx
+    index.css
+    main.tsx
+    vite-env.d.ts
+  .eslintrc.cjs
+  .gitignore
+  index.html
+  package.json
+  postcss.config.js
+  tailwind.config.js
+  tsconfig.json
+  tsconfig.node.json
+  vite.config.ts
+.gitignore
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="backend/internal/handlers/ai_handler.go">
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/Philip-Machar/clario/internal/middleware"
+	"github.com/Philip-Machar/clario/internal/models"
+	"github.com/Philip-Machar/clario/internal/service"
+)
+
+type AIHandler struct {
+	AIService *service.AIService
+}
+
+func NewAIHandler(service *service.AIService) *AIHandler {
+	return &AIHandler{AIService: service}
+}
+
+func (h *AIHandler) ChatWithMentor(w http.ResponseWriter, r *http.Request) {
+	//user id from context
+	userID := r.Context().Value(middleware.UserIDKey).(int64)
+
+	var userRequest models.ChatRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	mentorResponse, err := h.AIService.GetMentorResponse(r.Context(), int(userID), userRequest.Message)
+
+	if err != nil {
+		http.Error(w, "Failed to get AI response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(models.ChatResponse{Response: mentorResponse})
+}
+</file>
+
+<file path="backend/internal/repository/chat_repository.go">
+package repository
+
+import (
+	"database/sql"
+
+	"github.com/Philip-Machar/clario/internal/models"
+)
+
+type ChatRepository struct {
+	DB *sql.DB
+}
+
+func NewChatRepository(db *sql.DB) *ChatRepository {
+	return &ChatRepository{DB: db}
+}
+
+func (r *ChatRepository) SaveMessage(UserID int, role string, message string) error {
+	query := `INSERT INTO ai_chats (user_id, role, message) VALUES ($1, $2, $3)`
+
+	_, err := r.DB.Exec(query, UserID, role, message)
+
+	return err
+}
+
+func (r *ChatRepository) GetRecentHistory(UserID int) ([]models.ChatMessage, error) {
+	query := `SELECT role, message FROM ai_chats WHERE id = $1 ORDERED BY created_at ASC LIMIT 20`
+
+	rows, err := r.DB.Query(query, UserID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var history []models.ChatMessage
+
+	for rows.Next() {
+		var message models.ChatMessage
+
+		if err := rows.Scan(&message.Role, &message.Message); err != nil {
+			return nil, err
+		}
+
+		history = append(history, message)
+	}
+
+	return history, nil
+}
+</file>
+
+<file path="backend/migrations/001_create_users.sql">
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+-- +goose StatementEnd
+
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS users;
+-- +goose StatementEnd
+</file>
+
+<file path="backend/migrations/002_create_tasks_table.sql">
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'todo'
+        CHECK (status IN ('todo', 'in_progress', 'complete')),
+    priority TEXT NOT NULL DEFAULT 'medium'
+        CHECK (priority IN ('low', 'medium', 'high')),
+    due_date TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+-- +goose StatementEnd
+
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS tasks;
+-- +goose StatementEnd
+</file>
+
+<file path="backend/migrations/003_ai_chats_table.sql">
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS ai_chats (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+-- +goose StatementEnd
+
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS ai_chats;
+-- +goose StatementEnd
+</file>
+
+<file path="frontend/src/components/dashboard/FocusTimer.tsx">
+import { FC, useState } from 'react';
+
+interface FocusTimerProps {
+  initialMinutes?: number;
+}
+
+/**
+ * FocusTimer - Pomodoro-style focus session timer
+ * Beautiful circular design matching the original ControlHub style
+ */
+const FocusTimer: FC<FocusTimerProps> = ({ initialMinutes = 25 }) => {
+  const [isRunning, setIsRunning] = useState(false);
+  const [minutes, setMinutes] = useState(initialMinutes);
+  const [seconds, setSeconds] = useState(0);
+
+  const handleStart = () => {
+    setIsRunning(true);
+    // Timer logic would go here
+  };
+
+  const handleStop = () => {
+    setIsRunning(false);
+    setMinutes(initialMinutes);
+    setSeconds(0);
+  };
+
+  return (
+    <div className="px-4 py-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between text-xs text-slate-400">
+        <span>Focus Mode</span>
+        <span className="uppercase tracking-[0.16em] text-emerald-300">
+          Deep
+        </span>
+      </div>
+      <div className="relative mx-auto mt-1 mb-1 h-24 w-24">
+        <div className="absolute inset-0 rounded-full bg-slate-900" />
+        <div className="absolute inset-1 rounded-full bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900" />
+        <div className="absolute inset-1.5 rounded-full border border-slate-700/70" />
+        <div className="absolute inset-2 rounded-full bg-slate-950 flex items-center justify-center">
+          <span className="text-xl font-semibold text-slate-50">
+            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+      <button
+        onClick={isRunning ? handleStop : handleStart}
+        className="mt-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-xs font-semibold py-2 transition-colors"
+      >
+        {isRunning ? 'Stop session' : 'Start focus session'}
+      </button>
+    </div>
+  );
+};
+
+export default FocusTimer;
+</file>
+
+<file path="frontend/src/components/dashboard/WeeklyFocus.tsx">
+import { FC } from 'react';
+
+interface WeeklyFocusProps {
+  data?: number[];
+}
+
+/**
+ * WeeklyFocus - Weekly progress visualization
+ * Shows focus time trends over the past week
+ */
+const WeeklyFocus: FC<WeeklyFocusProps> = ({ data }) => {
+  // Mock data if not provided
+  const weekData = data || [2.5, 3.2, 2.8, 4.1, 3.5, 3.9, 4.5];
+  const maxValue = Math.max(...weekData, 5);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  // Calculate percentage change (mock)
+  const percentageChange = 10.97;
+
+  return (
+    <div className="surface-elevated flex flex-col h-full p-4 lg:p-6 min-h-[350px]">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-semibold text-text-primary">Weekly Focus</h3>
+          <span className="text-sm font-semibold text-accent">
+            +{percentageChange.toFixed(2)}%
+          </span>
+        </div>
+        <p className="text-body text-text-tertiary">Hours of focused work</p>
+      </div>
+
+      {/* Chart */}
+      <div className="flex-1 flex flex-col justify-end">
+        <div className="flex items-end justify-between gap-2 h-40">
+          {weekData.map((value, index) => {
+            const height = (value / maxValue) * 100;
+            return (
+              <div key={index} className="flex-1 flex flex-col items-center justify-end">
+                <div
+                  className="w-full rounded-t-lg bg-accent transition-all duration-500"
+                  style={{ height: `${height}%` }}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Day Labels */}
+        <div className="flex justify-between mt-3">
+          {days.map((day, index) => (
+            <span
+              key={index}
+              className="text-xs text-text-muted flex-1 text-center"
+            >
+              {day}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="mt-6 pt-6 border-t border-border-subtle">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-label text-text-muted mb-1">This Week</div>
+            <div className="text-2xl font-semibold text-text-primary">
+              {weekData.reduce((a, b) => a + b, 0).toFixed(1)}h
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-label text-text-muted mb-1">Daily Avg</div>
+            <div className="text-xl font-semibold text-text-primary">
+              {(weekData.reduce((a, b) => a + b, 0) / 7).toFixed(1)}h
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WeeklyFocus;
+</file>
+
+<file path="frontend/src/components/layout/ActionZone.tsx">
+import { ReactNode } from 'react';
+
+interface ActionZoneProps {
+  children: ReactNode;
+}
+
+/**
+ * Action Zone - Top 60% of main content
+ * Houses interactive task management and mentor chat
+ * Responsive: stacks on mobile, side-by-side on desktop
+ */
+const ActionZone = ({ children }: ActionZoneProps) => {
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-4 lg:p-6 min-h-0 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export default ActionZone;
+</file>
+
+<file path="frontend/src/components/layout/AppShell.tsx">
+import { ReactNode } from 'react';
+import Sidebar from './Sidebar';
+import MobileNav from './MobileNav';
+
+interface AppShellProps {
+  children: ReactNode;
+}
+
+/**
+ * Main application shell - provides the foundational layout structure
+ * Heavy, solid, engineered feel with clear separation of concerns
+ * Responsive: sidebar on desktop, mobile nav on mobile
+ */
+const AppShell = ({ children }: AppShellProps) => {
+  return (
+    <div className="min-h-screen bg-bg-primary flex">
+      {/* Left Navigation Sidebar (Desktop) */}
+      <Sidebar />
+      
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+        {children}
+      </main>
+
+      {/* Mobile Navigation (Mobile) */}
+      <MobileNav />
+    </div>
+  );
+};
+
+export default AppShell;
+</file>
+
+<file path="frontend/src/components/layout/DashboardHeader.tsx">
+import { FC } from 'react';
+import { useAuth } from '../../context/AuthContext';
+
+/**
+ * Dashboard Header - Clean, minimal, confident
+ * Displays workspace name and user info
+ */
+const DashboardHeader: FC = () => {
+  const { user } = useAuth();
+
+  return (
+    <header className="h-16 md:h-20 border-b border-border-subtle bg-bg-secondary flex items-center justify-between px-4 lg:px-8">
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-text-primary">
+          Clario
+        </h1>
+        <span className="text-label text-text-muted hidden sm:inline">V3</span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {user && (
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-sm font-medium text-text-primary">
+              {user.username}
+            </span>
+            <span className="text-xs text-text-muted">{user.email}</span>
+          </div>
+        )}
+        <div className="w-10 h-10 rounded-xl bg-bg-tertiary border border-border-visible flex items-center justify-center">
+          <span className="text-sm font-medium text-text-primary">
+            {user?.username?.[0]?.toUpperCase() || 'U'}
+          </span>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default DashboardHeader;
+</file>
+
+<file path="frontend/src/components/layout/DataZone.tsx">
+import { ReactNode } from 'react';
+
+interface DataZoneProps {
+  children: ReactNode;
+}
+
+/**
+ * Data Zone - Bottom 40% of main content
+ * Displays analytical and motivational data: Focus Timer, Weekly Focus, Streak Matrix
+ * Responsive: stacks on mobile, 3 columns on desktop
+ */
+const DataZone = ({ children }: DataZoneProps) => {
+  return (
+    <div className="h-[40vh] min-h-[400px] max-h-[500px] border-t border-border-subtle bg-bg-secondary overflow-hidden">
+      <div className="h-full grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-6 overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export default DataZone;
+</file>
+
+<file path="frontend/src/components/layout/MobileNav.tsx">
+import { FC } from 'react';
+import { useAuth } from '../../context/AuthContext';
+
+/**
+ * MobileNav - Bottom navigation bar for mobile devices
+ * Provides access to key features when sidebar is hidden
+ */
+const MobileNav: FC = () => {
+  const { logout } = useAuth();
+
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-bg-secondary border-t border-border-subtle z-50">
+      <div className="flex items-center justify-around h-16">
+        <button className="flex flex-col items-center gap-1 text-accent">
+          <span className="text-xl">▣</span>
+          <span className="text-xs">Dashboard</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-text-tertiary">
+          <span className="text-xl">◉</span>
+          <span className="text-xs">Tasks</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-text-tertiary">
+          <span className="text-xl">◈</span>
+          <span className="text-xs">Calendar</span>
+        </button>
+        <button
+          onClick={logout}
+          className="flex flex-col items-center gap-1 text-text-tertiary"
+        >
+          <span className="text-xl">→</span>
+          <span className="text-xs">Logout</span>
+        </button>
+      </div>
+    </nav>
+  );
+};
+
+export default MobileNav;
+</file>
+
+<file path="frontend/src/components/layout/Sidebar.tsx">
+import { FC } from 'react';
+import { useAuth } from '../../context/AuthContext';
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: string;
+  active?: boolean;
+}
+
+/**
+ * Left navigation sidebar - clean, minimal, purposeful
+ * Separated into Action Zone (top) and Data Zone (bottom) sections
+ */
+const Sidebar: FC = () => {
+  const { logout } = useAuth();
+
+  const actionZoneItems: NavItem[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: '▣', active: true },
+    { id: 'tasks', label: 'Tasks', icon: '◉' },
+    { id: 'calendar', label: 'Calendar', icon: '◈' },
+    { id: 'history', label: 'History', icon: '◊' },
+    { id: 'settings', label: 'Settings', icon: '◐' },
+  ];
+
+  const dataZoneItems: NavItem[] = [
+    { id: 'notifications', label: 'Notifications', icon: '◉' },
+    { id: 'help', label: 'Help', icon: '?' },
+  ];
+
+  return (
+    <aside className="hidden md:flex w-20 lg:w-24 bg-bg-secondary border-r border-border-subtle flex-col">
+      {/* Logo Section */}
+      <div className="h-20 lg:h-24 flex items-center justify-center border-b border-border-subtle">
+        <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-xl font-bold text-white">
+          C
+        </div>
+      </div>
+
+      {/* Action Zone Navigation */}
+      <nav className="flex-1 py-6 flex flex-col items-center gap-2">
+        {actionZoneItems.map((item) => (
+          <button
+            key={item.id}
+            className={`
+              w-14 h-14 lg:w-16 lg:h-16 rounded-xl flex items-center justify-center
+              transition-all duration-200
+              ${item.active
+                ? 'bg-accent-subtle border border-border-accent text-accent'
+                : 'text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary'
+              }
+            `}
+            title={item.label}
+          >
+            <span className="text-xl">{item.icon}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Divider */}
+      <div className="h-px bg-border-subtle mx-4" />
+
+      {/* Data Zone Navigation */}
+      <nav className="py-6 flex flex-col items-center gap-2">
+        {dataZoneItems.map((item) => (
+          <button
+            key={item.id}
+            className="w-14 h-14 lg:w-16 lg:h-16 rounded-xl flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200"
+            title={item.label}
+          >
+            <span className="text-xl">{item.icon}</span>
+          </button>
+        ))}
+        
+        {/* User Profile / Logout */}
+        <button
+          onClick={logout}
+          className="w-14 h-14 lg:w-16 lg:h-16 rounded-xl flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200 mt-4"
+          title="Logout"
+        >
+          <span className="text-xl">→</span>
+        </button>
+      </nav>
+    </aside>
+  );
+};
+
+export default Sidebar;
+</file>
+
+<file path="frontend/src/components/ProtectedRoute.tsx">
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const ProtectedRoute = () => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return <Outlet />;
+};
+
+export default ProtectedRoute;
+</file>
+
+<file path="frontend/src/features/auth/authService.ts">
+import api from '../../services/api';
+import { AuthResponse, RegisterRequest, LoginRequest } from '../../types';
+
+// We define the shape of the data needed to register/login
+export const registerUser = async (userData: RegisterRequest) => {
+    const response = await api.post('/register', userData);
+    return response.data;
+};
+
+export const loginUser = async (userData: LoginRequest): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/login', userData);
+    return response.data;
+};
+</file>
+
+<file path="frontend/src/features/chat/chatService.ts">
+import api from '../../services/api';
+import type { ChatResponse } from '../../types';
+
+export const sendMentorMessage = async (message: string): Promise<ChatResponse> => {
+  const response = await api.post<ChatResponse>('/chat', { message });
+  return response.data;
+};
+</file>
+
+<file path="frontend/src/main.tsx">
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+</file>
+
+<file path="frontend/src/vite-env.d.ts">
+/// <reference types="vite/client" />
+</file>
+
+<file path="frontend/.eslintrc.cjs">
+/* eslint-env node */
+
+module.exports = {
+  root: true,
+  env: { browser: true, es2020: true },
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    'plugin:react-hooks/recommended',
+  ],
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    project: true,
+    tsconfigRootDir: __dirname,
+  },
+  plugins: ['react-refresh'],
+  rules: {
+    'react-refresh/only-export-components': [
+      'warn',
+      { allowConstantExport: true },
+    ],
+    '@typescript-eslint/no-non-null-assertion': 'off',
+  },
+}
+</file>
+
+<file path="frontend/.gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+</file>
+
+<file path="frontend/postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="frontend/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+</file>
+
+<file path="frontend/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+</file>
+
+<file path="frontend/tsconfig.node.json">
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+</file>
+
+<file path="frontend/vite.config.ts">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+</file>
+
+<file path=".gitignore">
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Go workspace file
+go.work
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Binaries
+bin/
+dist/
+
+# Dependencies
+vendor/
+
+# Frontend specific
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.cache/
+frontend/coverage/
+frontend/.env
+frontend/.env.*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Local development config
+config.local.yaml
+config.dev.yaml
+
+# Coverage reports
+coverage/
+coverage.txt
+profile.out
+</file>
+
+<file path="backend/internal/middleware/auth_middleware.go">
+package middleware
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"strings"
+
+	"github.com/Philip-Machar/clario/internal/utils"
+)
+
+type contextKey string
+
+const UserIDKey contextKey = "user_id"
+
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+
+		if authHeader == "" {
+			log.Println("ERROR: Missing authorization header")
+			http.Error(w, "Invalid authorization header", http.StatusUnauthorized)
+			return
+		}
+
+		authHeaderSlice := strings.Split(authHeader, " ")
+
+		if len(authHeaderSlice) != 2 || authHeaderSlice[0] != "Bearer" {
+			log.Printf("ERROR: Invalid authorization format: %v\n", authHeaderSlice)
+			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := authHeaderSlice[1]
+		log.Printf("Validating token: %s...\n", tokenString[:20])
+
+		userID, err := utils.ValidateToken(tokenString)
+
+		if err != nil {
+			log.Printf("ERROR: Token validation failed: %v\n", err)
+			http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		log.Printf("Token validated successfully for user ID: %d\n", userID)
+		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+</file>
+
+<file path="backend/internal/models/task.go">
+// internal/models/task.go
+package models
+
+import "time"
+
+type Task struct {
+	ID          int        `json:"id"`
+	UserID      int        `json:"-"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Status      string     `json:"status"`
+	Priority    string     `json:"priority"`
+	DueDate     *time.Time `json:"due_date,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+</file>
+
+<file path="backend/internal/repository/user_repository.go">
+package repository
+
+import (
+	"database/sql"
+	"errors"
+
+	"github.com/Philip-Machar/clario/internal/models"
+)
+
+type UserRepository struct {
+	DB *sql.DB
+}
+
+func NewUserRepository(db *sql.DB) *UserRepository {
+	return &UserRepository{DB: db}
+}
+
+func (r *UserRepository) Create(user *models.User) error {
+	query := `INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
+
+	return r.DB.QueryRow(query,
+		user.Email,
+		user.PasswordHash,
+		user.Name,
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+}
+
+func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
+	query := `SELECT id, email, password_hash, name, created_at, updated_at FROM users WHERE email = $1`
+
+	row := r.DB.QueryRow(query, email)
+
+	var user models.User
+
+	err := row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Name,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("user not found")
+		}
+
+		return nil, err
+	}
+
+	return &user, nil
+
+}
+</file>
+
+<file path="backend/docker-compose.yml">
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: clario_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: clario
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: clario_backend
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
+</file>
+
+<file path="backend/Dockerfile">
+# -------- STAGE 1: Build --------
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app ./cmd/server
+
+
+# -------- STAGE 2: Run --------
+FROM alpine:latest
+
+WORKDIR /app
+
+# copy binary
+COPY --from=builder /app/app .
+
+# copy migrations (THIS WAS MISSING)
+COPY --from=builder /app/migrations ./migrations
+
+EXPOSE 8080
+
+CMD ["./app"]
+</file>
+
+<file path="frontend/src/features/tasks/taskService.ts">
+import api from '../../services/api';
+import type { Task, StreakResponse } from '../../types';
+
+// Fetch all tasks for the authenticated user
+export const fetchTasks = async (): Promise<Task[]> => {
+  const response = await api.get<Task[]>('/tasks');
+  return response.data;
+};
+
+// Create a new task
+interface CreateTaskPayload {
+  title: string;
+  description?: string;
+  status?: Task['status'];
+  priority?: Task['priority'];
+  due_date?: string | null;
+}
+
+export const createTask = async (payload: CreateTaskPayload): Promise<Task> => {
+  const response = await api.post<Task>('/create/task', payload);
+  return response.data;
+};
+
+// Update an existing task (full update)
+interface UpdateTaskPayload {
+  id: number;
+  title: string;
+  description: string;
+  status: Task['status'];
+  priority: Task['priority'];
+  due_date?: string | null;
+}
+
+export const updateTask = async (payload: UpdateTaskPayload): Promise<Task> => {
+  const { id, ...body } = payload;
+  const response = await api.put<Task>(`/task/${id}`, body);
+  return response.data;
+};
+
+// Delete a task
+export const deleteTask = async (id: number): Promise<void> => {
+  await api.delete(`/task/${id}`);
+};
+
+// Update only the status of a task
+export const updateTaskStatus = async (id: number, status: Task['status']): Promise<void> => {
+  await api.put(`/task/${id}/status`, { status });
+};
+
+// Get current streak
+export const fetchCurrentStreak = async (): Promise<number> => {
+  const response = await api.get<StreakResponse>('/streak');
+  return response.data.streak;
+};
+
+// Heatmap data structure
+export interface HeatmapResponse {
+  heatmap: { [date: string]: number };
+}
+
+// Get monthly heatmap data
+export const fetchMonthlyHeatmap = async (): Promise<{ [date: string]: number }> => {
+  const response = await api.get<HeatmapResponse>('/heatmap');
+  return response.data.heatmap;
+};
+</file>
+
+<file path="frontend/src/pages/SignUp.tsx">
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { registerUser } from '../features/auth/authService';
+import { useNavigate, Link } from 'react-router-dom';
+
+const SignUp = () => {
+    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { login } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        // Validation
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const data = await registerUser({ username, email, password });
+            login(data.token, data.user);
+            
+            // Redirect to Dashboard
+            navigate('/');
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to create account');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#050712] flex items-center justify-center p-3 sm:p-4 md:p-4 lg:p-6 relative overflow-y-auto">
+            {/* Animated background gradients */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+
+            <div className="max-w-md w-full relative z-10 my-6 sm:my-8 md:my-4 lg:my-6">
+                {/* Sign up card */}
+                <div className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 sm:p-5 md:p-4 lg:p-5">
+                    {error && (
+                        <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-red-950/50 border border-red-800/50 text-red-200 rounded-xl text-xs sm:text-sm backdrop-blur-xl">
+                            <div className="flex items-center gap-2">
+                                <span className="text-red-400">⚠</span>
+                                <span>{error}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 md:space-y-3">
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-1.5 md:mb-1">
+                                Username
+                            </label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2 sm:py-2.5 md:py-2 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="johndoe"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-2">
+                                Email Address
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2 sm:py-2.5 md:py-2 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="you@example.com"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-2">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2 sm:py-2.5 md:py-2 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <p className="mt-1 text-xs text-slate-500">Must be at least 6 characters</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-2">
+                                Confirm Password
+                            </label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2 sm:py-2.5 md:py-2 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`w-full py-2.5 sm:py-3 md:py-2.5 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-lg
+                                ${isSubmitting 
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                                    : 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:from-emerald-400 hover:to-cyan-400 shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]'}`}
+                        >
+                            {isSubmitting ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Creating account...
+                                </span>
+                            ) : 'Create Account'}
+                        </button>
+                    </form>
+
+                    {/* Divider */}
+                    <div className="relative my-3 sm:my-4 md:my-3">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-slate-800/60"></div>
+                        </div>
+                        <div className="relative flex justify-center text-xs sm:text-sm">
+                            <span className="px-3 bg-slate-950/80 text-slate-500 uppercase tracking-wider">Already have an account?</span>
+                        </div>
+                    </div>
+
+                    {/* Sign in link */}
+                    <Link 
+                        to="/login"
+                        className="block w-full py-2.5 sm:py-3 md:py-2.5 px-4 rounded-xl font-semibold text-sm sm:text-base text-center border-2 border-slate-700/80 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60 hover:border-slate-600 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        Sign In
+                    </Link>
+                </div>
+
+                {/* Footer text */}
+                <p className="mt-3 sm:mt-4 md:mt-3 text-center text-xs sm:text-sm text-slate-500">
+                    By creating an account, you agree to Clario's Terms of Service and Privacy Policy.
+                </p>
+            </div>
+        </div>
+    );
+};
+
+export default SignUp;
+</file>
+
+<file path="frontend/src/services/api.ts">
+import axios from "axios";
+
+const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL,
+    headers: {
+        "Content-Type": "application/json",
+    },
+});
+
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem("token")
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+        }
+
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+export default api;
+</file>
+
+<file path="frontend/index.html">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clario</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="backend/internal/models/user.go">
+package models
+
+import (
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+)
+
+type User struct {
+	ID           int       `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"-"` // The "-" prevents sending the password hash in JSON responses (Security!)
+	Name         string    `json:"name"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func NewUser(email, password, name string) (*User, error) {
+	hashedPassword, err := HashPassword(password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		Email:        email,
+		PasswordHash: hashedPassword,
+		Name:         name,
+	}, nil
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	return string(bytes), err
+}
+
+func (u *User) CheckPassword(password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+}
+</file>
+
+<file path="backend/internal/utils/jwt.go">
+package utils
+
+import (
+	"errors"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+var jwtSecret = []byte(os.Getenv("JWT_SECRETE"))
+
+type UserClaims struct {
+	UserID int64 `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
+func GenerateToken(userID int64) (string, error) {
+	claims := UserClaims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), // 30 days for development
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Subject:   strconv.FormatInt(userID, 10),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString(jwtSecret)
+}
+
+func ValidateToken(tokenString string) (int64, error) {
+	var claims UserClaims
+
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+
+		return jwtSecret, nil
+	})
+
+	if err != nil {
+		return 0, errors.New("token parsing error: " + err.Error())
+	}
+
+	if !token.Valid {
+		return 0, errors.New("invalid token")
+	}
+
+	return claims.UserID, nil
+}
+</file>
+
+<file path="frontend/src/components/dashboard/DashboardHeader.tsx">
+import { FC } from 'react';
+import { User } from '../../types';
+
+interface DashboardHeaderProps {
+  user: User | null;
+  onLogout: () => void;
+}
+
+const DashboardHeader: FC<DashboardHeaderProps> = ({ user, onLogout }) => {
+  return (
+    <header className="flex items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-3 sm:pt-4 pb-2">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-[10px] sm:text-xs font-semibold tracking-widest">
+          CL
+        </div>
+        <div>
+          <div className="text-[10px] sm:text-sm uppercase tracking-[0.20em] sm:tracking-[0.25em] text-slate-500">
+            Workspace
+          </div>
+          <div className="text-sm sm:text-lg font-semibold text-slate-100">
+            Clario Studio
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
+        <div className="hidden sm:flex flex-col items-end text-xs text-slate-400">
+          <span className="font-medium text-slate-200">
+            {user?.username}
+          </span>
+          <span className="hidden md:block">{user?.email}</span>
+        </div>
+        <button
+          onClick={onLogout}
+          className="rounded-full border border-slate-700/80 bg-slate-900/60 px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-slate-200 hover:bg-slate-800/80 hover:border-slate-600 transition-colors"
+        >
+          Sign out
+        </button>
+      </div>
+    </header>
+  );
+};
+
+export default DashboardHeader;
+</file>
+
+<file path="frontend/src/components/dashboard/TodaysOverview.tsx">
+import { FC, useMemo } from 'react';
+import type { Task } from '../../types';
+
+interface TodaysOverviewProps {
+  tasks?: Task[] | null;
+  isLoading?: boolean;
+}
+
+interface MiniRingChartProps {
+  percentage: number;
+  size?: number;
+}
+
+const MiniRingChart: FC<MiniRingChartProps> = ({ percentage, size = 40 }) => {
+  const radius = (size - 6) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+        style={{ filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.4))' }}
+      >
+        {/* Background ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(51, 65, 85, 0.5)"
+          strokeWidth="3"
+        />
+        {/* Progress ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#10b981"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-500 ease-out"
+        />
+      </svg>
+      {/* Percentage text */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[10px] font-medium text-slate-300">
+          {percentage}%
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const TodaysOverview: FC<TodaysOverviewProps> = ({ tasks, isLoading = false }) => {
+  const today = new Date();
+  const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = today.toLocaleDateString('en-US', { month: 'short' });
+  const day = today.getDate();
+
+  // Calculate today's stats
+  const todaysStats = useMemo(() => {
+    if (!tasks || tasks.length === 0) {
+      return {
+        completed: 0,
+        allCompleted: 0,
+        total: 0,
+        inProgress: 0,
+        completionRate: 0,
+        donePercentage: 0,
+        inProgressPercentage: 0,
+        totalPercentage: 0,
+      };
+    }
+
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Tasks completed today
+    const completedToday = tasks.filter(
+      task => task.status === 'complete' && 
+      task.completed_at && 
+      task.completed_at.startsWith(todayStr)
+    ).length;
+
+    // All completed tasks
+    const allCompleted = tasks.filter(task => task.status === 'complete').length;
+    
+    const inProgress = tasks.filter(task => task.status === 'in_progress').length;
+    const total = tasks.length;
+    const completionRate = total > 0 ? Math.round((allCompleted / total) * 100) : 0;
+    
+    // Calculate percentages for each metric
+    const donePercentage = total > 0 ? Math.round((allCompleted / total) * 100) : 0;
+    const inProgressPercentage = total > 0 ? Math.round((inProgress / total) * 100) : 0;
+    // Remaining tasks percentage: 100% when nothing is done, 0% when all are done
+    const totalPercentage = total > 0 ? Math.round(((total - allCompleted) / total) * 100) : 0;
+
+    return {
+      completed: completedToday,
+      allCompleted,
+      total,
+      inProgress,
+      completionRate,
+      donePercentage,
+      inProgressPercentage,
+      totalPercentage,
+    };
+  }, [tasks, today]);
+
+  const getGreeting = () => {
+    const hour = today.getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  return (
+    <section className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pb-2">
+      <div className="rounded-xl sm:rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 px-3 sm:px-4 md:px-6 py-2 sm:py-3 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+        {/* Mobile/Tablet: Vertical layout */}
+        <div className="lg:hidden">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-semibold tracking-[0.20em] sm:tracking-[0.25em] text-slate-500 uppercase">
+                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-emerald-400" />
+                Today's Overview
+              </div>
+              <div className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-400">
+                {getGreeting()} • {dayOfWeek}, {month} {day}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-slate-500">
+                Progress
+              </div>
+              <div className="text-lg sm:text-2xl font-semibold text-emerald-400">
+                {isLoading ? '—' : `${todaysStats.completionRate}%`}
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            {/* Tasks completed */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 bg-slate-900/40 rounded-lg sm:rounded-xl p-2 sm:p-3">
+              {!isLoading && (
+                <MiniRingChart percentage={todaysStats.donePercentage} size={36} />
+              )}
+              <div className="text-center">
+                <div className="text-[9px] sm:text-xs text-slate-500 uppercase tracking-[0.10em] sm:tracking-[0.15em]">
+                  Done
+                </div>
+                <div className="text-sm sm:text-lg font-semibold text-emerald-400">
+                  {isLoading ? '—' : todaysStats.allCompleted}
+                </div>
+              </div>
+            </div>
+
+            {/* Tasks in progress */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 bg-slate-900/40 rounded-lg sm:rounded-xl p-2 sm:p-3">
+              {!isLoading && (
+                <MiniRingChart percentage={todaysStats.inProgressPercentage} size={36} />
+              )}
+              <div className="text-center">
+                <div className="text-[9px] sm:text-xs text-slate-500 uppercase tracking-[0.10em] sm:tracking-[0.15em]">
+                  Progress
+                </div>
+                <div className="text-sm sm:text-lg font-semibold text-slate-300">
+                  {isLoading ? '—' : todaysStats.inProgress}
+                </div>
+              </div>
+            </div>
+
+            {/* Total tasks */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 bg-slate-900/40 rounded-lg sm:rounded-xl p-2 sm:p-3">
+              {!isLoading && (
+                <MiniRingChart percentage={todaysStats.totalPercentage} size={36} />
+              )}
+              <div className="text-center">
+                <div className="text-[9px] sm:text-xs text-slate-500 uppercase tracking-[0.10em] sm:tracking-[0.15em]">
+                  Total
+                </div>
+                <div className="text-sm sm:text-lg font-semibold text-slate-200">
+                  {isLoading ? '—' : todaysStats.total}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: Horizontal layout */}
+        <div className="hidden lg:flex items-center justify-between">
+          {/* Left: Date and greeting */}
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.25em] text-slate-500 uppercase">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Today's Overview
+            </div>
+            <div className="mt-2 text-sm text-slate-400">
+              {getGreeting()} • {dayOfWeek}, {month} {day}
+            </div>
+          </div>
+
+          {/* Center: Today's stats */}
+          <div className="flex-1 px-8">
+            <div className="flex items-center gap-8 justify-center">
+              {/* Tasks completed */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs text-slate-500 uppercase tracking-[0.15em]">
+                    Done
+                  </div>
+                  <div className="text-lg font-semibold text-emerald-400">
+                    {isLoading ? '—' : todaysStats.allCompleted}
+                  </div>
+                </div>
+                {!isLoading && (
+                  <MiniRingChart percentage={todaysStats.donePercentage} size={44} />
+                )}
+              </div>
+
+              {/* Tasks in progress */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs text-slate-500 uppercase tracking-[0.15em]">
+                    In Progress
+                  </div>
+                  <div className="text-lg font-semibold text-slate-300">
+                    {isLoading ? '—' : todaysStats.inProgress}
+                  </div>
+                </div>
+                {!isLoading && (
+                  <MiniRingChart percentage={todaysStats.inProgressPercentage} size={44} />
+                )}
+              </div>
+
+              {/* Total tasks */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs text-slate-500 uppercase tracking-[0.15em]">
+                    Total Tasks
+                  </div>
+                  <div className="text-lg font-semibold text-slate-200">
+                    {isLoading ? '—' : todaysStats.total}
+                  </div>
+                </div>
+                {!isLoading && (
+                  <MiniRingChart percentage={todaysStats.totalPercentage} size={44} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Completion rate */}
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                Today's Progress
+              </div>
+              <div className="text-2xl font-semibold text-emerald-400">
+                {isLoading ? '—' : `${todaysStats.completionRate}%`}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default TodaysOverview;
+</file>
+
+<file path="frontend/src/context/AuthContext.tsx">
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User } from '../types';
+
+// 1. The Shape of our Context
+interface AuthContextType {
+    user: User | null;         
+    token: string | null;      
+    isAuthenticated: boolean;  
+    isLoading: boolean;        
+    login: (token: string, user: User) => void; 
+    logout: () => void;                         
+}
+
+// Create the Context with a default empty state
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// 2. The Provider 
+// This component wraps your entire app.
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+    const [user, setUser] = useState<User | null>(null);
+    const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Startup Logic: Check if we have a token saved
+    useEffect(() => {
+        const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+
+        if (storedToken && storedUser) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+        }
+        setIsLoading(false); // We are done checking
+    }, []);
+
+    // Login Action
+    const login = (newToken: string, newUser: User) => {
+        // 1. Save to State (React memory)
+        setToken(newToken);
+        setUser(newUser);
+        
+        // 2. Save to Storage 
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(newUser));
+    };
+
+    // Logout Action
+    const logout = () => {
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    };
+
+    return (
+        <AuthContext.Provider value={{ 
+            user, 
+            token, 
+            isAuthenticated: !!token, 
+            isLoading, 
+            login, 
+            logout 
+        }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+// 3. The Custom Hook
+// This is a shortcut so we don't have to write "useContext(AuthContext)" every time.
+// We just write "useAuth()".
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+};
+</file>
+
+<file path="frontend/src/index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-[#050712] text-slate-50 antialiased;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+</file>
+
+<file path="backend/internal/db/db.go">
+package db
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
+)
+
+func Connect() *sql.DB {
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	name := os.Getenv("DB_NAME")
+
+	if host == "" {
+		log.Fatal("DB_HOST not set")
+	}
+
+	connStr := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		user, password, host, port, name,
+	)
+
+	// --- Retry connection (Docker/Postgres may not be ready yet) ---
+	var db *sql.DB
+	var err error
+
+	for i := 0; i < 10; i++ {
+		db, err = sql.Open("postgres", connStr)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+				break
+			}
+		}
+
+		log.Println("Waiting for Postgres to be ready...")
+		time.Sleep(2 * time.Second)
+	}
+
+	if err != nil {
+		log.Fatal("Database not reachable:", err)
+	}
+
+	fmt.Println("Connected to Postgres successfully ✅")
+
+	// --- Run migrations automatically ---
+	runMigrations(db)
+
+	return db
+}
+
+func runMigrations(db *sql.DB) {
+	fmt.Println("Running migrations...")
+
+	goose.SetDialect("postgres")
+
+	// IMPORTANT: this path must match Dockerfile copy location
+	migrationsDir := "/app/migrations"
+
+	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
+		log.Fatalf("Migrations folder not found at %s", migrationsDir)
+	}
+
+	if err := goose.Up(db, migrationsDir); err != nil {
+		log.Fatal("Migration error:", err)
+	}
+
+	fmt.Println("Migrations applied successfully ✅")
+}
+</file>
+
+<file path="backend/internal/handlers/auth_handler.go">
+package handlers
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/Philip-Machar/clario/internal/models"
+	"github.com/Philip-Machar/clario/internal/repository"
+	"github.com/Philip-Machar/clario/internal/utils"
+)
+
+type AuthHandler struct {
+	UserRepo *repository.UserRepository
+}
+
+func NewAuthHandler(userRepo *repository.UserRepository) *AuthHandler {
+	return &AuthHandler{UserRepo: userRepo}
+}
+
+func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Name     string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if payload.Email == "" || payload.Password == "" {
+		http.Error(w, "Email and Password are required: ", http.StatusBadRequest)
+		return
+	}
+
+	user, err := models.NewUser(payload.Email, payload.Password, payload.Name)
+
+	if err != nil {
+		http.Error(w, "Faild to create user type with hashed password: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.UserRepo.Create(user)
+
+	if err != nil {
+		http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.UserRepo.GetByEmail(payload.Email)
+
+	if err != nil {
+		if err.Error() == "user not found" {
+			http.Error(w, "Invalid email or password: "+err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		http.Error(w, "Failed to get user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := user.CheckPassword(payload.Password); err != nil {
+		http.Error(w, "Invalid email or password"+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token, err := utils.GenerateToken(int64(user.ID))
+
+	if err != nil {
+		http.Error(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("User logged in successfully: ID=%d, Email=%s, Token generated (expires in 30 days)\n", user.ID, user.Email)
+
+	response := map[string]interface{}{
+		"token": token,
+		"user": map[string]any{
+			"id":       user.ID,
+			"username": user.Name,
+			"email":    user.Email,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+</file>
+
+<file path="backend/internal/models/chat.go">
+package models
+
+import (
+	"time"
+)
+
+type ChatMessage struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Role      string    `json:"role"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Chat request struct for the API
+type ChatRequest struct {
+	Message string `json:"message"`
+}
+
+// AI response struct for the API
+type ChatResponse struct {
+	Response string `json:"response"`
+}
+</file>
+
+<file path="backend/internal/service/ai_service.go">
+package service
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/Philip-Machar/clario/internal/repository"
+	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/api/option"
+)
+
+type AIService struct {
+	Client   *genai.Client
+	Model    *genai.GenerativeModel
+	ChatRepo *repository.ChatRepository
+	TaskRepo *repository.TaskRepository
+}
+
+func NewAIService(chatRepo *repository.ChatRepository, taskRepo *repository.TaskRepository) *AIService {
+	ctx := context.Background()
+	apiKey := os.Getenv("GEMINI_API_KEY")
+
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	model := client.GenerativeModel("gemini-2.5-flash")
+
+	return &AIService{
+		Client:   client,
+		Model:    model,
+		ChatRepo: chatRepo,
+		TaskRepo: taskRepo,
+	}
+}
+
+func (s *AIService) GetMentorResponse(ctx context.Context, userID int, userMessage string) (string, error) {
+	//get all user tasks for context
+	allTasks, _ := s.TaskRepo.GetAll(userID)
+
+	todayTotalTasks := 0
+	todayDoneTasks := 0
+	overdueTasks := 0
+
+	taskReport := ""
+
+	now := time.Now()
+	todayDateStr := now.Format("2006-01-02")
+
+	for _, task := range allTasks {
+		if task.DueDate == nil {
+			continue
+		}
+
+		taskDateStr := task.DueDate.Format("2006-01-02")
+
+		// Case A: Due Today
+		if taskDateStr == todayDateStr {
+			todayTotalTasks++
+			status := "PENDING"
+			if task.Status == "complete" {
+				todayDoneTasks++
+				status = "DONE"
+			}
+
+			taskReport += fmt.Sprintf("- Status: %s, Title: %s, Description: %s, Priority: %s\n", status, task.Title, task.Description, task.Priority)
+		}
+
+		// Case B: Overdue
+		if task.DueDate.Before(now) && taskDateStr != todayDateStr && task.Status != "complete" {
+			overdueTasks++
+			taskReport += fmt.Sprintf("- OVERDUE: %s Due: %s\n", task.Title, taskDateStr)
+		}
+	}
+
+	// system prompt
+	systemPrompt := fmt.Sprintf(`
+	You are an AI mentor, accountability partner, and systems coach.
+
+	Your job is NOT to be polite or motivational only.
+	Your job is to help the user actually become the person they say they want to be.
+
+	You have full access to their task data and recent behavior.
+	You must use it.
+
+	CORE ROLE:
+	- Act like a calm, honest mentor who genuinely wants the user to win.
+	- Encourage progress, effort, and honesty.
+	- Call out self-sabotage, inconsistency, avoidance, and excuses when you see patterns.
+	- Do NOT sugar-coat repeated failures.
+	- Be firm but respectful. Honest, not harsh.
+
+	PHILOSOPHY YOU MUST PUSH:
+	- Motivation is unreliable. Systems beat motivation.
+	- Identity drives behavior ("What would a disciplined person do today?")
+	- Small consistent actions matter more than perfect plans.
+	- Missed tasks are data, not shame — but patterns must be addressed.
+	- The goal is not task completion, it is becoming a consistent person.
+
+	HOW TO USE TASK DATA:
+	- Explicitly reference:
+	- Tasks due today
+	- Tasks completed today
+	- Overdue tasks
+	- If tasks are repeatedly overdue, point it out clearly.
+	- If today’s completion rate is low, address it directly.
+	- If progress is good, acknowledge it and reinforce the identity behind it.
+	- Ask WHY tasks are not getting done, but do not accept vague answers like “I was busy” without pushing deeper.
+
+	WHEN YOU SEE PROBLEMS:
+	- Identify the pattern (e.g. overloading days, avoidance, poor prioritization).
+	- Call it out clearly.
+	- Propose concrete systems:
+	- Fewer daily tasks
+	- Time-blocking
+	- Non-negotiable minimums
+	- Environment changes
+	- Breaking tasks into smaller steps
+	- Push the user to change the system, not rely on willpower.
+
+	TONE & STYLE:
+	- Supportive, grounded, direct.
+	- Speak like a real mentor, not a therapist.
+	- You may challenge the user respectfully.
+	- Avoid generic motivational quotes.
+	- Avoid robotic language.
+	- Be human.
+
+	IDENTITY REINFORCEMENT:
+	- Regularly remind the user:
+	- “This is about becoming someone who follows through.”
+	- “Each action is a vote for the person you want to be.”
+	- When they act in alignment, name it explicitly.
+	- When they don’t, point out the gap between identity and action.
+
+	IMPORTANT:
+	- Do not shame.
+	- Do not enable excuses.
+	- Do not pretend everything is fine when it isn’t.
+	- Always aim to move the user one step closer to consistency today.
+
+	USER STATS (use these explicitly in your response):
+	- Tasks Due Today: %d
+	- Completed Today: %d
+	- Overdue Tasks: %d
+
+	TASK DETAILS:
+	%s
+
+	be concise and to the point two to three sentences max
+	`, todayTotalTasks, todayDoneTasks, overdueTasks, taskReport)
+
+	chatHistory, _ := s.ChatRepo.GetRecentHistory(userID)
+
+	//start chat session
+	chatSession := s.Model.StartChat()
+
+	for _, message := range chatHistory {
+		role := "user"
+
+		if message.Role == "assistant" {
+			role = "model"
+		}
+
+		chatSession.History = append(chatSession.History, &genai.Content{Role: role, Parts: []genai.Part{genai.Text(message.Message)}})
+	}
+
+	//send message
+	finalPrompt := systemPrompt + "\n\nUser: " + userMessage
+
+	response, err := chatSession.SendMessage(ctx, genai.Text(finalPrompt))
+
+	if err != nil {
+		return "", err
+	}
+
+	//extract ai reply
+	aiResponse := ""
+	if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+		aiResponse = fmt.Sprintf("%s", response.Candidates[0].Content.Parts[0])
+	}
+
+	//save current chat to db
+	s.ChatRepo.SaveMessage(userID, "user", userMessage)
+	s.ChatRepo.SaveMessage(userID, "assistant", aiResponse)
+
+	return aiResponse, nil
+}
+</file>
+
+<file path="frontend/src/types/index.ts">
+// 1. The User Contract
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+}
+
+// 2. The Task Contract (aligned with backend JSON)
+export type TaskStatus = 'todo' | 'in_progress' | 'complete';
+export type TaskPriority = 'low' | 'medium' | 'high';
+
+export interface Task {
+    id: number;
+    title: string;
+    description: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    due_date?: string | null;
+    created_at?: string;
+    completed_at?: string | null;
+
+    // Not actually returned by the backend (UserID is json:"-"), so keep optional
+    user_id?: number;
+}
+
+// 3. The API Response Contracts
+// response when you log in
+export interface AuthResponse {
+    token: string;
+    user: User;
+}
+
+// response during chat
+export interface ChatResponse {
+    response: string;
+}
+
+// register and login contracts (what we send to the backend)
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface RegisterRequest {
+    username: string;
+    email: string;
+    password: string;
+}
+
+// 4. Dashboard helper types
+export interface StreakResponse {
+    streak: number;
+}
+
+export interface ChatRequestPayload {
+    message: string;
+}
+</file>
+
+<file path="frontend/src/App.tsx">
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import SignUp from './pages/SignUp';
+import Dashboard from './pages/Dashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+
+          {/* Protected Routes (The Bouncer wraps these) */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Dashboard />} />
+            {/* Later we will add: <Route path="/tasks" ... /> */}
+          </Route>
+
+          {/* Catch all - Redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="frontend/package.json">
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.12.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.14",
+    "@types/react-dom": "^18.2.6",
+    "@typescript-eslint/eslint-plugin": "^5.61.0",
+    "@typescript-eslint/parser": "^5.61.0",
+    "@vitejs/plugin-react": "^4.0.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^8.44.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.0"
+  }
+}
+</file>
+
+<file path="frontend/src/components/dashboard/MentorChat.tsx">
+import { FC } from 'react';
+
+export interface MentorMessage {
+  id: string;
+  from: 'user' | 'mentor';
+  text: string;
+}
+
+interface MentorChatProps {
+  messages: MentorMessage[];
+  input: string;
+  setInput: (value: string) => void;
+  onSend: () => void;
+  isSending: boolean;
+}
+
+const MentorChat: FC<MentorChatProps> = ({
+  messages,
+  input,
+  setInput,
+  onSend,
+  isSending,
+}) => {
+  return (
+    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-4 flex flex-col h-full min-h-0 overflow-hidden">
+      <header className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-sky-400 via-emerald-300 to-cyan-400 flex items-center justify-center text-xs font-semibold text-slate-950">
+            CL
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.26em] text-slate-500">
+              Mentor
+            </div>
+            <div className="text-xs text-slate-300">Online • Clario</div>
+          </div>
+        </div>
+        <span className="rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 border border-emerald-400/60">
+          Accountability
+        </span>
+      </header>
+
+      <div className="flex-1 overflow-y-auto rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 pr-2 space-y-2 text-xs custom-scroll min-h-0">
+        {messages.length === 0 && (
+          <div className="text-[11px] text-slate-500 leading-relaxed">
+            Tell your mentor what you're planning to finish in the next 25
+            minutes. You'll get a short, direct response based on your
+            actual tasks.
+          </div>
+        )}
+
+        {messages.map(msg => (
+          <div
+            key={msg.id}
+            className={`flex ${
+              msg.from === 'user' ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-[80%] rounded-2xl px-3 py-2 text-[11px] leading-relaxed ${
+                msg.from === 'user'
+                  ? 'bg-sky-500/90 text-slate-950 rounded-br-sm'
+                  : 'bg-slate-800/90 text-slate-100 rounded-bl-sm'
+              }`}
+            >
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {isSending && (
+          <div className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-500 animate-pulse" />
+            Clario is thinking…
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-end gap-2">
+        <textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            // Send message on Enter (without Shift)
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (input.trim() && !isSending) {
+                onSend();
+              }
+            }
+            // Allow Shift+Enter for new line (default behavior)
+          }}
+          rows={1}
+          placeholder="Type your message..."
+          className="flex-1 resize-none rounded-xl bg-slate-900/80 border border-slate-800/90 px-3 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 overflow-y-auto"
+          style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(51, 65, 85, 0.4) transparent'
+          }}
+        />
+        <button
+          onClick={onSend}
+          disabled={!input.trim() || isSending}
+          className="h-9 w-9 flex items-center justify-center rounded-2xl bg-emerald-500/90 text-slate-950 text-xs font-semibold hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          ↗
+        </button>
+      </div>
+    </section>
+  );
+};
+
+export default MentorChat;
+</file>
+
+<file path="frontend/src/components/dashboard/TaskBoard.tsx">
+import { FC, useMemo } from 'react';
+import type { Task } from '../../types';
+
+export type BoardColumnKey = 'todo' | 'in_progress' | 'complete';
+
+interface TaskBoardProps {
+  tasks: Task[] | null | undefined;
+  isLoading: boolean;
+  onCreateTask: () => void;
+  isCreating: boolean;
+  newTaskTitle: string;
+  newTaskDescription: string;
+  newTaskPriority: 'low' | 'medium' | 'high';
+  newTaskDueDate: string;
+  setNewTaskTitle: (value: string) => void;
+  setNewTaskDescription: (value: string) => void;
+  setNewTaskPriority: (value: 'low' | 'medium' | 'high') => void;
+  setNewTaskDueDate: (value: string) => void;
+  onStatusChange: (task: Task, status: BoardColumnKey) => void;
+  onUpdateTask?: (task: Task) => void;
+  onDeleteTask?: (taskId: number) => void;
+}
+
+const TaskBoard: FC<TaskBoardProps> = ({
+  tasks,
+  isLoading,
+  onCreateTask,
+  isCreating,
+  newTaskTitle,
+  newTaskDescription,
+  newTaskPriority,
+  newTaskDueDate,
+  setNewTaskTitle,
+  setNewTaskDescription,
+  setNewTaskPriority,
+  setNewTaskDueDate,
+  onStatusChange,
+  onUpdateTask,
+  onDeleteTask,
+}) => {
+  const safeTasks = tasks ?? [];
+  const groupedTasks = useMemo(() => {
+    const base: Record<BoardColumnKey, Task[]> = {
+      todo: [],
+      in_progress: [],
+      complete: [],
+    };
+    for (const task of safeTasks) {
+      const key = (task.status || 'todo') as BoardColumnKey;
+      if (base[key]) {
+        base[key].push(task);
+      } else {
+        // Fallback to todo if status is invalid
+        base.todo.push(task);
+      }
+    }
+    return base;
+  }, [safeTasks]);
+
+  return (
+    <section className="rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl px-4 pt-3 pb-4 flex flex-col h-full overflow-hidden">
+      <style>{`
+        .task-column-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .task-column-scroll::-webkit-scrollbar-track {
+          background: transparent;
+          border-radius: 3px;
+        }
+        .task-column-scroll::-webkit-scrollbar-thumb {
+          background: rgba(51, 65, 85, 0.6);
+          border-radius: 3px;
+        }
+        .task-column-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(51, 65, 85, 0.8);
+        }
+      `}</style>
+      <header className="flex items-center justify-between px-1 pb-2">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">
+            Taskboard
+          </div>
+          <div className="mt-1 text-sm text-slate-300">
+            Shape your day in three columns.
+          </div>
+        </div>
+        <button
+          onClick={onCreateTask}
+          disabled={isCreating || !newTaskTitle.trim()}
+          className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {isCreating ? 'Adding…' : 'Add task'}
+        </button>
+      </header>
+
+      {/* Quick add row - Responsive */}
+      <div className="mb-2 sm:mb-3">
+        {/* Mobile: Stacked layout */}
+        <div className="md:hidden space-y-2">
+          <input
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            placeholder="New task title"
+            className="w-full rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <input
+            value={newTaskDescription}
+            onChange={e => setNewTaskDescription(e.target.value)}
+            placeholder="Description (optional)"
+            className="w-full rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={newTaskDueDate}
+              onChange={e => setNewTaskDueDate(e.target.value)}
+              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+            />
+            <select
+              value={newTaskPriority}
+              onChange={e =>
+                setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')
+              }
+              className="rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 sm:px-3 py-1.5 sm:py-2 pr-7 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 8px center',
+                backgroundSize: '10px 6px'
+              }}
+            >
+              <option value="low" className="bg-slate-900 text-slate-100">Low</option>
+              <option value="medium" className="bg-slate-900 text-slate-100">Med</option>
+              <option value="high" className="bg-slate-900 text-slate-100">High</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* Tablet/Desktop: Horizontal layout */}
+        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_130px_100px] gap-2 text-xs">
+          <input
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            placeholder="New task title"
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <input
+            value={newTaskDescription}
+            onChange={e => setNewTaskDescription(e.target.value)}
+            placeholder="Optional description"
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <input
+            type="date"
+            value={newTaskDueDate}
+            onChange={e => setNewTaskDueDate(e.target.value)}
+            className="rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+          />
+          <div className="relative">
+            <select
+              value={newTaskPriority}
+              onChange={e =>
+                setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')
+              }
+              className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 pr-8 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '12px 8px'
+              }}
+            >
+              <option value="low" className="bg-slate-900 text-slate-100">Low</option>
+              <option value="medium" className="bg-slate-900 text-slate-100">Medium</option>
+              <option value="high" className="bg-slate-900 text-slate-100">High</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Columns - Responsive: Stacked on mobile, 2 cols on tablet, 3 cols on desktop */}
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs min-h-0">
+        {(['todo', 'in_progress', 'complete'] as BoardColumnKey[]).map(
+          columnKey => {
+            const columnTasks = groupedTasks[columnKey];
+            const labelMap: Record<BoardColumnKey, string> = {
+              todo: 'To Do',
+              in_progress: 'In Progress',
+              complete: 'Done',
+            };
+
+            return (
+              <div
+                key={columnKey}
+                className="rounded-2xl bg-slate-900/70 border border-slate-800/90 flex flex-col min-h-0"
+              >
+                <div className="flex items-center justify-between px-3 pt-2 pb-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                    <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-400">
+                      {labelMap[columnKey]}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-slate-800/80 px-2 py-0.5 text-[10px] text-slate-300">
+                    {isLoading ? '—' : columnTasks.length}
+                  </span>
+                </div>
+
+                <div 
+                  className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-0 max-h-[60vh] task-column-scroll"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgba(51, 65, 85, 0.6) transparent'
+                  }}
+                >
+                  {isLoading && (
+                    <div className="flex items-center justify-center py-6 text-[11px] text-slate-500">
+                      Loading tasks…
+                    </div>
+                  )}
+                  {!isLoading && columnTasks.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-slate-700/80 bg-slate-900/60 px-3 py-4 text-[11px] text-slate-500 text-center">
+                      No tasks here yet.
+                    </div>
+                  )}
+
+                  {columnTasks.map(task => (
+                    <div
+                      key={task.id}
+                      className="w-full rounded-2xl bg-slate-900/90 border border-slate-800/80 px-3 py-3 hover:border-emerald-400/60 hover:bg-slate-900 transition-colors group"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextStatus: Record<BoardColumnKey, BoardColumnKey> =
+                            {
+                              todo: 'in_progress',
+                              in_progress: 'complete',
+                              complete: 'todo',
+                            };
+                          onStatusChange(task, nextStatus[columnKey]);
+                        }}
+                        className="w-full text-left"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="text-[12px] font-medium text-slate-100 line-clamp-2">
+                            {task.title}
+                          </div>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                              task.priority === 'high'
+                                ? 'border-rose-400/80 text-rose-200 bg-rose-500/10'
+                                : task.priority === 'medium'
+                                ? 'border-amber-300/80 text-amber-100 bg-amber-400/10'
+                                : 'border-slate-500 text-slate-200 bg-slate-500/10'
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
+                        </div>
+                        {task.description && (
+                          <div className="text-[11px] text-slate-400 line-clamp-3">
+                            {task.description}
+                          </div>
+                        )}
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                          <span>
+                            {task.due_date
+                              ? new Date(task.due_date).toLocaleDateString()
+                              : 'No due date'}
+                          </span>
+                          <span className="text-emerald-300/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                            Move to next column
+                          </span>
+                        </div>
+                      </button>
+                      <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onUpdateTask && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateTask(task);
+                            }}
+                            className="flex-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 px-2 py-1.5 text-[10px] font-medium text-slate-300 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {onDeleteTask && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to delete this task?')) {
+                                onDeleteTask(task.id);
+                              }
+                            }}
+                            className="flex-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 px-2 py-1.5 text-[10px] font-medium text-rose-300 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          },
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default TaskBoard;
+</file>
+
+<file path="frontend/src/pages/Login.tsx">
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../features/auth/authService';
+import { useNavigate, Link } from 'react-router-dom';
+
+const Login = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { login } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsSubmitting(true);
+
+        try {
+            const data = await loginUser({ email: email, password: password });
+            login(data.token, data.user);
+            
+            // Redirect to Dashboard
+            navigate('/');
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to login');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#050712] flex items-center justify-center p-3 sm:p-4 md:p-6 lg:p-8 relative overflow-hidden">
+            {/* Animated background gradients */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+
+            <div className="max-w-md w-full relative z-10 my-4 sm:my-6">
+                {/* Login card */}
+                <div className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950/80 via-slate-950/40 to-slate-950/10 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-5 sm:p-6 md:p-8">
+                    {error && (
+                        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-950/50 border border-red-800/50 text-red-200 rounded-xl text-xs sm:text-sm backdrop-blur-xl">
+                            <div className="flex items-center gap-2">
+                                <span className="text-red-400">⚠</span>
+                                <span>{error}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-2">
+                                Email Address
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="you@example.com"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-2">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-700/80 text-slate-100 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`w-full py-3 sm:py-3.5 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-lg
+                                ${isSubmitting 
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                                    : 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:from-emerald-400 hover:to-cyan-400 shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]'}`}
+                        >
+                            {isSubmitting ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Signing in...
+                                </span>
+                            ) : 'Sign In'}
+                        </button>
+                    </form>
+
+                    {/* Divider */}
+                    <div className="relative my-6 sm:my-8">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-slate-800/60"></div>
+                        </div>
+                        <div className="relative flex justify-center text-xs sm:text-sm">
+                            <span className="px-3 bg-slate-950/80 text-slate-500 uppercase tracking-wider">New to Clario?</span>
+                        </div>
+                    </div>
+
+                    {/* Sign up link */}
+                    <Link 
+                        to="/signup"
+                        className="block w-full py-3 sm:py-3.5 px-4 rounded-xl font-semibold text-sm sm:text-base text-center border-2 border-slate-700/80 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60 hover:border-slate-600 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        Create Account
+                    </Link>
+                </div>
+
+                {/* Footer text */}
+                <p className="mt-6 text-center text-xs sm:text-sm text-slate-500">
+                    By continuing, you agree to Clario's Terms of Service and Privacy Policy.
+                </p>
+            </div>
+        </div>
+    );
+};
+
+export default Login;
+</file>
+
+<file path="frontend/src/pages/Dashboard.tsx">
+import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import type { Task } from '../types';
+import { fetchTasks, updateTaskStatus, createTask, updateTask, deleteTask } from '../features/tasks/taskService';
+import { sendMentorMessage } from '../features/chat/chatService';
+import DashboardHeader from '../components/dashboard/DashboardHeader';
+import TodaysOverview from '../components/dashboard/TodaysOverview';
+import ControlHub from '../components/dashboard/ControlHub';
+import TaskBoard, { BoardColumnKey } from '../components/dashboard/TaskBoard';
+import MentorChat, { MentorMessage } from '../components/dashboard/MentorChat';
+
+const Dashboard = () => {
+  const { logout, user } = useAuth();
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+
+  const [mentorMessages, setMentorMessages] = useState<MentorMessage[]>([]);
+  const [mentorInput, setMentorInput] = useState('');
+  const [isSendingMentor, setIsSendingMentor] = useState(false);
+  
+  // Track if greeting has been sent to prevent duplicates
+  const hasGreetedRef = useRef(false);
+
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+
+  // Edit task state
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskPriority, setEditTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [editTaskStatus, setEditTaskStatus] = useState<BoardColumnKey>('todo');
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
+
+  // Initial load
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const tasksData = await fetchTasks();
+        setTasks(Array.isArray(tasksData) ? tasksData : []);
+      } catch (error) {
+        console.error('Failed to load dashboard data', error);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+    load();
+  }, []);
+
+  // AI greeting on mount
+  useEffect(() => {
+    // Only send greeting once, even if component re-renders
+    if (hasGreetedRef.current) return;
+    
+    const sendInitialGreeting = async () => {
+      hasGreetedRef.current = true; // Mark as greeted before API call
+      
+      try {
+        // Send a prompt to the AI to generate a personalized greeting
+        const greetingPrompt = "Greet the user as their accountability mentor. Be brief, friendly, and motivating. Ask them what they want to accomplish today. Keep it under 2 sentences.";
+        
+        const res = await sendMentorMessage(greetingPrompt);
+        
+        setMentorMessages([
+          {
+            id: `mentor-${Date.now()}`,
+            from: 'mentor',
+            text: res.response
+          }
+        ]);
+      } catch (error) {
+        console.error('Failed to send initial greeting:', error);
+        // Fallback to a simple greeting if API fails
+        setMentorMessages([
+          {
+            id: `mentor-${Date.now()}`,
+            from: 'mentor',
+            text: "Hey! Ready to make today count? What's on your agenda?"
+          }
+        ]);
+      }
+    };
+    
+    sendInitialGreeting();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  const handleStatusChange = async (task: Task, status: BoardColumnKey) => {
+    try {
+      setTasks(prev =>
+        prev.map(t => (t.id === task.id ? { ...t, status } : t)),
+      );
+      await updateTaskStatus(task.id, status);
+    } catch (error) {
+      console.error('Failed to update status', error);
+      // Ideally refetch tasks if this fails
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    try {
+      setIsCreatingTask(true);
+      
+      // Convert date string to ISO 8601 format with time (end of day in user's timezone)
+      let formattedDueDate: string | null = null;
+      if (newTaskDueDate) {
+        const date = new Date(newTaskDueDate);
+        // Set to end of day (23:59:59) in user's local timezone
+        date.setHours(23, 59, 59, 999);
+        formattedDueDate = date.toISOString();
+      }
+      
+      const created = await createTask({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim(),
+        priority: newTaskPriority,
+        status: 'todo',
+        due_date: formattedDueDate,
+      });
+      setTasks(prev => [created, ...prev]);
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskPriority('medium');
+      setNewTaskDueDate('');
+    } catch (error) {
+      console.error('Failed to create task', error);
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
+
+  const handleUpdateTask = (task: Task) => {
+    setEditingTask(task);
+    setEditTaskTitle(task.title);
+    setEditTaskDescription(task.description || '');
+    setEditTaskPriority(task.priority);
+    setEditTaskStatus(task.status as BoardColumnKey);
+  };
+
+  const handleSaveTask = async () => {
+    if (!editingTask || !editTaskTitle.trim()) return;
+    try {
+      setIsUpdatingTask(true);
+      const updated = await updateTask({
+        id: editingTask.id,
+        title: editTaskTitle.trim(),
+        description: editTaskDescription.trim(),
+        status: editTaskStatus,
+        priority: editTaskPriority,
+        due_date: editingTask.due_date || null,
+      });
+      setTasks(prev => prev.map(t => t.id === editingTask.id ? updated : t));
+      setEditingTask(null);
+      setEditTaskTitle('');
+      setEditTaskDescription('');
+      setEditTaskPriority('medium');
+      setEditTaskStatus('todo');
+    } catch (error) {
+      console.error('Failed to update task', error);
+    } finally {
+      setIsUpdatingTask(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    try {
+      await deleteTask(taskId);
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (error) {
+      console.error('Failed to delete task', error);
+    }
+  };
+
+  const handleSendMentor = async () => {
+    const trimmed = mentorInput.trim();
+    if (!trimmed) return;
+
+    const userMsg: MentorMessage = {
+      id: `user-${Date.now()}`,
+      from: 'user',
+      text: trimmed,
+    };
+
+    setMentorMessages(prev => [...prev, userMsg]);
+    setMentorInput('');
+    setIsSendingMentor(true);
+
+    try {
+      const res = await sendMentorMessage(trimmed);
+      const mentorMsg: MentorMessage = {
+        id: `mentor-${Date.now()}`,
+        from: 'mentor',
+        text: res.response,
+      };
+      setMentorMessages(prev => [...prev, mentorMsg]);
+    } catch (error) {
+      console.error('Failed to send mentor message', error);
+    } finally {
+      setIsSendingMentor(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#050712] text-slate-50 flex flex-col">
+      <DashboardHeader user={user} onLogout={logout} />
+      <TodaysOverview tasks={tasks} isLoading={isLoadingTasks} />
+
+      {/* Main grid - Responsive Layout */}
+      <main className="flex-1 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pb-3 sm:pb-4 overflow-hidden">
+        <div className="max-w-[1920px] mx-auto h-full">
+          {/* Mobile: Stacked layout */}
+          {/* Tablet: 2 columns */}
+          {/* Desktop: 3 columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,280px)_minmax(0,1.6fr)_minmax(260px,320px)] gap-3 sm:gap-4 h-full">
+            
+            {/* Left Sidebar - ControlHub (Hidden on mobile by default, shown in modal or tab) */}
+            <div className="hidden lg:block lg:h-full lg:min-h-[600px]">
+              <ControlHub tasks={tasks} />
+            </div>
+
+            {/* Center - TaskBoard (Always visible, main content) */}
+            <div className="h-full min-h-[500px] lg:min-h-[600px]">
+              <TaskBoard
+                tasks={tasks}
+                isLoading={isLoadingTasks}
+                onCreateTask={handleCreateTask}
+                isCreating={isCreatingTask}
+                newTaskTitle={newTaskTitle}
+                newTaskDescription={newTaskDescription}
+                newTaskPriority={newTaskPriority}
+                newTaskDueDate={newTaskDueDate}
+                setNewTaskTitle={setNewTaskTitle}
+                setNewTaskDescription={setNewTaskDescription}
+                setNewTaskPriority={setNewTaskPriority}
+                setNewTaskDueDate={setNewTaskDueDate}
+                onStatusChange={handleStatusChange}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+              />
+            </div>
+
+            {/* Right Sidebar - MentorChat */}
+            <div className="hidden xl:flex xl:flex-col xl:h-full xl:min-h-[600px] xl:max-h-[calc(100vh-200px)]">
+              <MentorChat
+                messages={mentorMessages}
+                input={mentorInput}
+                setInput={setMentorInput}
+                onSend={handleSendMentor}
+                isSending={isSendingMentor}
+              />
+            </div>
+          </div>
+
+          {/* Mobile: Show ControlHub and MentorChat as collapsible sections below TaskBoard */}
+          <div className="lg:hidden mt-4 space-y-4">
+            <div className="min-h-[400px]">
+              <ControlHub tasks={tasks} />
+            </div>
+            <div className="xl:hidden min-h-[400px]">
+              <MentorChat
+                messages={mentorMessages}
+                input={mentorInput}
+                setInput={setMentorInput}
+                onSend={handleSendMentor}
+                isSending={isSendingMentor}
+              />
+            </div>
+          </div>
+
+          {/* Tablet (lg): Show MentorChat below when not in 3-column mode */}
+          <div className="hidden lg:block xl:hidden mt-4 min-h-[400px]">
+            <MentorChat
+              messages={mentorMessages}
+              input={mentorInput}
+              setInput={setMentorInput}
+              onSend={handleSendMentor}
+              isSending={isSendingMentor}
+            />
+          </div>
+        </div>
+      </main>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/95 shadow-[0_22px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-100">Edit Task</h2>
+              <button
+                onClick={() => {
+                  setEditingTask(null);
+                  setEditTaskTitle('');
+                  setEditTaskDescription('');
+                  setEditTaskPriority('medium');
+                  setEditTaskStatus('todo');
+                }}
+                className="text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5">Title</label>
+                <input
+                  value={editTaskTitle}
+                  onChange={e => setEditTaskTitle(e.target.value)}
+                  className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60"
+                  placeholder="Task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5">Description</label>
+                <textarea
+                  value={editTaskDescription}
+                  onChange={e => setEditTaskDescription(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 resize-none"
+                  placeholder="Task description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Priority</label>
+                  <div className="relative">
+                    <select
+                      value={editTaskPriority}
+                      onChange={e => setEditTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
+                      className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 pr-8 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 12px center',
+                        backgroundSize: '12px 8px'
+                      }}
+                    >
+                      <option value="low" className="bg-slate-900 text-slate-100">Low</option>
+                      <option value="medium" className="bg-slate-900 text-slate-100">Medium</option>
+                      <option value="high" className="bg-slate-900 text-slate-100">High</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Status</label>
+                  <div className="relative">
+                    <select
+                      value={editTaskStatus}
+                      onChange={e => setEditTaskStatus(e.target.value as BoardColumnKey)}
+                      className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-2 pr-8 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 12px center',
+                        backgroundSize: '12px 8px'
+                      }}
+                    >
+                      <option value="todo" className="bg-slate-900 text-slate-100">To Do</option>
+                      <option value="in_progress" className="bg-slate-900 text-slate-100">In Progress</option>
+                      <option value="complete" className="bg-slate-900 text-slate-100">Done</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setEditingTask(null);
+                    setEditTaskTitle('');
+                    setEditTaskDescription('');
+                    setEditTaskPriority('medium');
+                    setEditTaskStatus('todo');
+                  }}
+                  className="flex-1 rounded-xl border border-slate-700/80 bg-slate-900/80 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800/80 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTask}
+                  disabled={isUpdatingTask || !editTaskTitle.trim()}
+                  className="flex-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isUpdatingTask ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
+</file>
+
+<file path="backend/go.mod">
+module github.com/Philip-Machar/clario
+
+go 1.24.5
+
+require (
+	github.com/go-chi/chi/v5 v5.2.3
+	github.com/lib/pq v1.10.9
+	github.com/pressly/goose/v3 v3.24.0
+)
+
+require golang.org/x/crypto v0.46.0
+
+require (
+	github.com/go-chi/cors v1.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/google/generative-ai-go v0.20.1
+	github.com/joho/godotenv v1.5.1
+	google.golang.org/api v0.258.0
+)
+
+require (
+	cloud.google.com/go v0.115.0 // indirect
+	cloud.google.com/go/ai v0.8.0 // indirect
+	cloud.google.com/go/auth v0.17.0 // indirect
+	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
+	cloud.google.com/go/compute/metadata v0.9.0 // indirect
+	cloud.google.com/go/longrunning v0.5.7 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/google/s2a-go v0.1.9 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
+	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
+	go.opentelemetry.io/otel v1.38.0 // indirect
+	go.opentelemetry.io/otel/metric v1.38.0 // indirect
+	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	google.golang.org/grpc v1.77.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
+</file>
+
+<file path="frontend/src/components/dashboard/ControlHub.tsx">
+import { FC, useState, useEffect, useRef } from 'react';
+import { fetchCurrentStreak, fetchMonthlyHeatmap } from '../../features/tasks/taskService';
+
+interface Task {
+  id: number;
+  title: string;
+  status: string;
+}
+
+interface ControlHubProps {
+  tasks?: Task[] | null;
+}
+
+const ControlHub: FC<ControlHubProps> = ({ tasks }) => {
+  const user = { username: 'Machar' };
+  const safeTasks = tasks ?? [];
+  // Calculate today's progress: 100% when all tasks are incomplete, 0% when all are complete
+  const totalTasks = safeTasks.length;
+  const completedTasks = safeTasks.filter(task => task.status === 'complete').length;
+  const todayProgress = totalTasks > 0 ? Math.round(((totalTasks - completedTasks) / totalTasks) * 100) : 0;
+
+  // Focus timer state
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [focusMinutes, setFocusMinutes] = useState(25);
+  const [timeRemaining, setTimeRemaining] = useState(25 * 60); // in seconds
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editValue, setEditValue] = useState('25');
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Heatmap and streak state
+  const [heatmapData, setHeatmapData] = useState<{ [date: string]: number }>({});
+  const [currentStreak, setCurrentStreak] = useState<number>(0);
+  const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(true);
+
+  // Fetch heatmap and streak data
+  useEffect(() => {
+    const loadHeatmapData = async () => {
+      try {
+        setIsLoadingHeatmap(true);
+        const [heatmap, streak] = await Promise.all([
+          fetchMonthlyHeatmap(),
+          fetchCurrentStreak()
+        ]);
+        setHeatmapData(heatmap);
+        setCurrentStreak(streak);
+      } catch (error) {
+        console.error('Failed to load heatmap data:', error);
+      } finally {
+        setIsLoadingHeatmap(false);
+      }
+    };
+    loadHeatmapData();
+  }, []);
+
+  // Countdown logic
+  useEffect(() => {
+    if (isRunning && !isPaused && timeRemaining > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setIsRunning(false);
+            setIsPaused(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isRunning, isPaused, timeRemaining]);
+
+  // Get current month name
+  const getCurrentMonthName = () => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const today = new Date();
+    return monthNames[today.getMonth()];
+  };
+
+  // Transform heatmap data into monthly calendar grid
+  const getHeatmapGrid = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const grid: number[][] = [];
+    
+    // Get first day of the month
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Get last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    const totalDaysInMonth = lastDay.getDate();
+    
+    // Calculate total cells needed (including leading empty cells)
+    const totalCells = firstDayOfWeek + totalDaysInMonth;
+    const totalWeeks = Math.ceil(totalCells / 7);
+    
+    let dayCounter = 1;
+    
+    // Build the calendar grid
+    for (let week = 0; week < totalWeeks; week++) {
+      const weekData: number[] = [];
+      
+      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+        const cellIndex = week * 7 + dayOfWeek;
+        
+        // Empty cells before the first day of the month
+        if (cellIndex < firstDayOfWeek) {
+          weekData.push(-1); // -1 = not part of this month
+        }
+        // Days of the month
+        else if (dayCounter <= totalDaysInMonth) {
+          const currentDate = new Date(year, month, dayCounter);
+          const dateStr = currentDate.toISOString().split('T')[0];
+          weekData.push(heatmapData[dateStr] || 0);
+          dayCounter++;
+        }
+        // Empty cells after the last day of the month
+        else {
+          weekData.push(-1);
+        }
+      }
+      
+      grid.push(weekData);
+    }
+    
+    return grid;
+  };
+
+  // Calculate today's position in the monthly calendar grid
+  const getTodayPosition = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const dayOfMonth = today.getDate();
+    
+    // Get first day of the month to calculate offset
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay();
+    
+    // Calculate position in grid
+    const totalDays = firstDayOfWeek + dayOfMonth - 1; // -1 because day 1 is at index firstDayOfWeek
+    const weekIdx = Math.floor(totalDays / 7);
+    const dayIdx = totalDays % 7;
+    
+    return { weekIdx, dayIdx };
+  };
+
+  // Calculate total tasks this month
+  const getTotalMonthlyTasks = () => {
+    return Object.values(heatmapData).reduce((sum, count) => sum + count, 0);
+  };
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate progress percentage for circle
+  const progressPercentage = focusMinutes > 0 
+    ? ((focusMinutes * 60 - timeRemaining) / (focusMinutes * 60)) * 100 
+    : 0;
+
+  // Get incomplete tasks for dropdown
+  const availableTasks = safeTasks.filter(task => task.status !== 'complete');
+
+  const handleStart = () => {
+    if (timeRemaining === 0) {
+      setTimeRemaining(focusMinutes * 60);
+    }
+    setIsRunning(true);
+    setIsPaused(false);
+  };
+
+  const handlePause = () => {
+    setIsPaused(true);
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    setIsRunning(false);
+    setIsPaused(false);
+    setTimeRemaining(focusMinutes * 60);
+  };
+
+  const handleTimeClick = () => {
+    if (!isRunning && !isPaused) {
+      setIsEditingTime(true);
+      setEditValue(focusMinutes.toString());
+    }
+  };
+
+  const handleTimeBlur = () => {
+    const minutes = parseInt(editValue);
+    if (!isNaN(minutes) && minutes > 0 && minutes <= 999) {
+      setFocusMinutes(minutes);
+      setTimeRemaining(minutes * 60);
+    } else {
+      setEditValue(focusMinutes.toString());
+    }
+    setIsEditingTime(false);
+  };
+
+  const handleTimeKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTimeBlur();
+    } else if (e.key === 'Escape') {
+      setEditValue(focusMinutes.toString());
+      setIsEditingTime(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl sm:rounded-3xl border border-slate-800/80 bg-slate-950/80 shadow-[0_22px_70px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-3 sm:p-4 flex flex-col gap-2 h-full overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-400/80 via-cyan-400/80 to-sky-500/80 flex items-center justify-center text-xs sm:text-sm font-semibold text-slate-950">
+          {user?.username?.[0]?.toUpperCase() ?? 'C'}
+        </div>
+        <div className="flex-1">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.20em] sm:tracking-[0.28em] text-slate-500">
+            Control Hub
+          </div>
+          <div className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-200 line-clamp-1">
+            Today's Progress
+          </div>
+          <div className="mt-1 sm:mt-2 flex items-center gap-2">
+            <div className="h-1 sm:h-1.5 flex-1 rounded-full bg-slate-800/90 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-200 transition-all duration-500"
+                style={{ width: `${todayProgress}%` }}
+              />
+            </div>
+            <div className="text-[10px] sm:text-xs text-slate-400 min-w-[32px] text-right">
+              {todayProgress}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Focus timer */}
+      <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-4 py-3 flex flex-col gap-3">
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span>Focus Mode</span>
+          <span className="uppercase tracking-[0.16em] text-emerald-300">
+            {isRunning ? 'Active' : isPaused ? 'Paused' : 'Ready'}
+          </span>
+        </div>
+
+        {/* Task selection */}
+        <div>
+          <label className="block text-[10px] text-slate-500 mb-1">Select Task</label>
+          <select
+            value={selectedTaskId || ''}
+            onChange={(e) => setSelectedTaskId(e.target.value ? parseInt(e.target.value) : null)}
+            disabled={isRunning || isPaused || availableTasks.length === 0}
+            className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 px-2.5 py-1 pr-8 text-[11px] text-slate-100 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/60 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238c9ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              backgroundSize: '12px 8px'
+            }}
+          >
+            <option value="" className="bg-slate-900 text-slate-100">No task selected</option>
+            {availableTasks.map(task => (
+              <option key={task.id} value={task.id} className="bg-slate-900 text-slate-100">
+                {task.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Timer display */}
+        <div 
+          className={`relative mx-auto h-24 w-24 ${!isRunning && !isPaused ? 'cursor-pointer' : ''}`}
+          onClick={handleTimeClick}
+        >
+          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="rgba(51, 65, 85, 0.3)"
+              strokeWidth="8"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 45}`}
+              strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercentage / 100)}`}
+              className="transition-all duration-1000 ease-linear"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {isEditingTime ? (
+              <>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleTimeBlur}
+                  onKeyDown={handleTimeKeyDown}
+                  autoFocus
+                  className="w-12 text-center text-lg font-semibold text-slate-50 bg-transparent border-b border-emerald-400 outline-none no-spinner"
+                  min="1"
+                  max="999"
+                  style={{ MozAppearance: 'textfield', paddingTop: '10px', paddingBottom: '10px' }}
+                />
+                <style>{`
+                  input[type=number].no-spinner::-webkit-inner-spin-button,
+                  input[type=number].no-spinner::-webkit-outer-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                  }
+                  input[type=number].no-spinner {
+                    -moz-appearance: textfield;
+                  }
+                `}</style>
+              </>
+            ) : (
+              <span className="text-lg font-semibold text-slate-50" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+                {formatTime(timeRemaining)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Control buttons */}
+        <div className="flex gap-1.5">
+          {!isRunning && !isPaused ? (
+            <button
+              onClick={handleStart}
+              disabled={timeRemaining === 0}
+              className="flex-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-[11px] font-semibold py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Start
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={isPaused ? handleStart : handlePause}
+                className="flex-1 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 text-[11px] font-semibold py-1.5 transition-colors"
+              >
+                {isPaused ? 'Resume' : 'Pause'}
+              </button>
+              <button
+                onClick={handleReset}
+                className="flex-1 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800/80 text-slate-300 text-[11px] font-semibold py-1.5 transition-colors"
+              >
+                Reset
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Monthly Progress Heatmap */}
+      <div className="mt-1 space-y-2 flex-1 min-h-0 flex flex-col">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-medium text-slate-400 uppercase tracking-[0.18em]">
+            {getCurrentMonthName()} Progress
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+            <span>Less</span>
+            <div className="flex gap-1">
+              <div className="w-2.5 h-2.5 rounded bg-slate-800/60" />
+              <div className="w-2.5 h-2.5 rounded bg-emerald-500/30" />
+              <div className="w-2.5 h-2.5 rounded bg-emerald-500/50" />
+              <div className="w-2.5 h-2.5 rounded bg-emerald-500/70" />
+              <div className="w-2.5 h-2.5 rounded bg-emerald-500" />
+            </div>
+            <span>More</span>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 px-3 py-3 flex flex-col">
+          <div className="space-y-1">
+            {/* Day labels */}
+            <div className="flex gap-1 mb-2">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                <div key={idx} className="flex-1 text-center text-[10px] text-slate-500">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            {/* Heatmap grid */}
+            <div className="space-y-1">
+              {isLoadingHeatmap ? (
+                <div className="flex items-center justify-center py-8 text-xs text-slate-500">
+                  Loading heatmap...
+                </div>
+              ) : (
+                getHeatmapGrid().map((week, weekIdx) => {
+                  const todayPos = getTodayPosition();
+                  return (
+                    <div key={weekIdx} className="flex gap-1">
+                      {week.map((value, dayIdx) => {
+                        const isToday = weekIdx === todayPos.weekIdx && dayIdx === todayPos.dayIdx;
+                        const isValid = value >= 0; // -1 means future date
+                        const intensity = value <= 0 ? 0 : value >= 12 ? 4 : value >= 9 ? 3 : value >= 6 ? 2 : 1;
+                        
+                        return (
+                          <div
+                            key={dayIdx}
+                            className={`flex-1 aspect-square rounded transition-all duration-200 ${
+                              !isValid
+                                ? 'bg-transparent'
+                                : isToday
+                                ? 'ring-2 ring-emerald-400/60 ring-offset-1 ring-offset-slate-900 bg-emerald-500/' + (intensity === 0 ? '20' : intensity === 1 ? '30' : intensity === 2 ? '50' : intensity === 3 ? '70' : '100')
+                                : intensity === 0
+                                ? 'bg-slate-800/60'
+                                : intensity === 1
+                                ? 'bg-emerald-500/30 hover:bg-emerald-500/40'
+                                : intensity === 2
+                                ? 'bg-emerald-500/50 hover:bg-emerald-500/60'
+                                : intensity === 3
+                                ? 'bg-emerald-500/70 hover:bg-emerald-500/80'
+                                : 'bg-emerald-500 hover:bg-emerald-400'
+                            }`}
+                            title={isValid && value > 0 ? `${value} tasks completed` : isValid && value === 0 ? 'No tasks completed' : ''}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          
+          {/* Summary stats */}
+          <div className="mt-2 pt-2 border-t border-slate-800/90 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-[0.12em]">
+                This Month
+              </div>
+              <div className="text-sm font-semibold text-slate-200 mt-0.5">
+                {isLoadingHeatmap ? '...' : `${getTotalMonthlyTasks()} tasks`}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] text-slate-500 uppercase tracking-[0.12em]">
+                Current Streak
+              </div>
+              <div className="text-sm font-semibold text-emerald-400 mt-0.5">
+                {isLoadingHeatmap ? '...' : `${currentStreak} day${currentStreak !== 1 ? 's' : ''}`}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default ControlHub;
+</file>
+
+<file path="backend/internal/handlers/task_handler.go">
+package handlers
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/Philip-Machar/clario/internal/middleware"
+	"github.com/Philip-Machar/clario/internal/models"
+	"github.com/Philip-Machar/clario/internal/repository"
+	"github.com/go-chi/chi/v5"
+)
+
+type TaskHandler struct {
+	Repo *repository.TaskRepository
+}
+
+func NewTaskHandler(repo *repository.TaskRepository) *TaskHandler {
+	return &TaskHandler{Repo: repo}
+}
+
+func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		log.Println("ERROR: Failed to extract user ID from context")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	log.Printf("Creating task for user ID: %d\n", userIDFromContext)
+
+	var payload struct {
+		Title       string     `json:"title"`
+		Description string     `json:"description"`
+		Status      string     `json:"status"`
+		Priority    string     `json:"priority"`
+		DueDate     *time.Time `json:"due_date"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		log.Printf("ERROR: Failed to decode request body: %v\n", err)
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Printf("Decoded payload: Title=%s, Description=%s, Status=%s, Priority=%s\n",
+		payload.Title, payload.Description, payload.Status, payload.Priority)
+
+	if payload.Title == "" {
+		log.Println("ERROR: Title is empty")
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+
+	if payload.Status == "" {
+		payload.Status = "todo"
+	}
+
+	if payload.Priority == "" {
+		payload.Priority = "medium"
+	}
+
+	task := models.Task{
+		UserID:      int(userIDFromContext),
+		Title:       payload.Title,
+		Description: payload.Description,
+		Status:      payload.Status,
+		Priority:    payload.Priority,
+		DueDate:     payload.DueDate,
+	}
+
+	if err := h.Repo.Create(&task); err != nil {
+		log.Printf("ERROR: Failed to create task in repository: %v\n", err)
+		http.Error(w, "Failed to create a task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Task created successfully with ID: %d\n", task.ID)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(task)
+}
+
+func (h *TaskHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tasks, err := h.Repo.GetAll(int(userIDFromContext))
+
+	if err != nil {
+		http.Error(w, "Failed to get tasks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tasks)
+}
+
+func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.Repo.Delete(id, int(userIDFromContext))
+
+	if err != nil {
+		http.Error(w, "Failed to Delete task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"message": "Task deleted successfully"}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	idParam := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		http.Error(w, "Invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Title       string     `json:"title"`
+		Description string     `json:"description"`
+		Status      string     `json:"status"`
+		Priority    string     `json:"priority"`
+		DueDate     *time.Time `json:"due_date"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	task := models.Task{
+		UserID:      int(userIDFromContext),
+		ID:          id,
+		Title:       payload.Title,
+		Description: payload.Description,
+		Status:      payload.Status,
+		Priority:    payload.Priority,
+		DueDate:     payload.DueDate,
+	}
+
+	if err := h.Repo.Update(&task); err != nil {
+		http.Error(w, "Failed to update task"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(task)
+}
+
+func (h *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Repo.UpdateStatus(id, payload.Status, int(userIDFromContext)); err != nil {
+		http.Error(w, "Failed to update status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"message": "Status updated successfully"}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *TaskHandler) GetCurrentStreaks(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	streak, err := h.Repo.GetCurrentStreaks(int(userIDFromContext))
+
+	if err != nil {
+		http.Error(w, "Failed to get streaks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]int{
+		"streak": streak,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *TaskHandler) GetMonthlyHeatmap(w http.ResponseWriter, r *http.Request) {
+	userIDFromContext, ok := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	heatmapData, err := h.Repo.GetMonthlyHeatmapData(int(userIDFromContext))
+
+	if err != nil {
+		http.Error(w, "Failed to get heatmap data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"heatmap": heatmapData,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+</file>
+
+<file path="README.md">
+# Clario
+
+A next-generation productivity and accountability platform designed to help individuals and teams achieve their goals
+
+## Key Features
+
+- **AI Mentor Chat** — Get real-time advice, motivation, and accountability from an intelligent AI-powered mentor.
+- **Task Management** — Create, edit, organize, and track tasks with intuitive drag-and-drop boards.
+- **Streak & Heatmap Analytics** — Visualize your consistency with GitHub-style streak heatmaps and monthly progress charts.
+- **Focus Timer** — Built-in Pomodoro-style timer to boost your productivity on selected tasks.
+- **User Authentication** — Secure registration and login with JWT-based sessions.
+- **Responsive Design** — Beautiful, accessible UI optimized for both desktop and mobile devices.
+- **Production-Ready** — Containerized with Docker, scalable infrastructure with AWS support.
+
+---
+
+[Live Demo](https://clario-weld.vercel.app)
+
+## Screenshots
+
+### Dashboard Overview
+![Dashboard](docs/screenshots/clario-dashboard.png)
+*Main dashboard with task overview, focus timer, and daily statistics*
+
+---
+
+### Technology Mapping
+- **Frontend Hosting**: Vercel (auto-deploys from Git, global CDN, serverless functions)
+- **Backend Hosting**: AWS EC2 (t3.micro or larger Ubuntu instance with Docker)
+- **Database**: Amazon RDS PostgreSQL (managed database with automated backups)
+- **DNS**: Route 53 (domain management and routing)
+- **Monitoring**: CloudWatch (logs, metrics, alerts)
+
+---
+
+**Prerequisites**: AWS EC2 instance running Ubuntu 22.04 LTS
+
+```bash
+# SSH into your EC2 instance
+ssh -i your-key.pem ubuntu@your-ec2-public-ip
+
+# Install Docker and Docker Compose
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Clone repository
+git clone https://github.com/Philip-Machar/clario.git
+cd clario/backend
+
+# Create .env file with production values
+nano .env
+# DATABASE_URL=postgres://user:password@your-rds-endpoint:5432/clario
+# JWT_SECRET=your_strong_jwt_secret
+# GOOGLE_API_KEY=your_google_api_key
+# ENVIRONMENT=production
+
+# Build and run with Docker
+docker build -t clario-backend:latest .
+docker run -d \
+  -p 8000:8000 \
+  --env-file .env \
+  --restart unless-stopped \
+  --name clario-api \
+  clario-backend:latest
+
+# Verify service is running
+curl http://localhost:8000/health
+```
+
+Set up reverse proxy (Nginx) for SSL:
+```bash
+sudo apt install -y nginx
+# Configure nginx as reverse proxy to localhost:8000
+# Point your domain to the Elastic IP in Route 53
+```
+
+#### 5. Deploy Frontend to Vercel
+
+```bash
+cd frontend
+
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy to Vercel (automatically builds and deploys)
+vercel
+
+# Set up environment variables in Vercel dashboard
+# VITE_API_URL=https://your-backend-domain.com
+
+# Enable automatic deployments from Git
+# (Vercel integrates directly with GitHub)
+```
+
+Frontend will be live at: **https://clario-weld.vercel.app**
+
+---
+
+## Architecture
+
+### System Design
+```
+                AWS EC2 (Linux Server)
+              ┌─────────────────────────┐
+Internet ───▶ │ Nginx (HTTPS Gateway)   │
+              │        ↓                │
+              │ Docker Compose          │
+              │   ├─ Backend Container  │
+              │   └─ Postgres Container │
+              └─────────────────────────┘
+                         ↑
+                 Persistent Volume (DB data)
+
+Frontend (Vercel) talks securely to Nginx
+
+```
+
+---
+
+### Project Structure
+
+```
+clario/
+├── backend/          # Go-based REST API, business logic, and database migrations
+│   ├── internal/     # Core services and repositories
+│   ├── migrations/   # SQL migrations for PostgreSQL
+│   ├── go.mod        # Backend dependencies
+│   └── ...
+├── frontend/         # React + TypeScript web client
+│   ├── src/
+│   │   ├── components/   # Reusable UI components (Dashboard, MentorChat, ControlHub, etc.)
+│   │   ├── pages/        # Main pages (Dashboard, Login, SignUp)
+│   │   ├── context/      # React context (Auth, etc.)
+│   │   └── ...
+│   ├── public/       # Static assets
+│   ├── package.json  # Frontend dependencies
+│   └── ...
+├── README.md         # Project documentation
+└── ...
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- **Node.js** v18 or higher
+- **Go** v1.24 or higher
+- **PostgreSQL** v14 or higher
+- **Docker** and **Docker Compose** (for containerized development)
+- **Git** for version control
+
+### Local Development Setup
+
+#### 1. Clone the Repository
+```bash
+git clone https://github.com/Philip-Machar/clario.git
+cd clario
+```
+
+#### 2. Backend Setup
+
+```bash
+cd backend
+
+# Copy environment configuration
+cp .env.example .env
+
+# Edit .env with your configuration
+# DATABASE_URL=postgres://user:password@localhost:5432/clario
+# JWT_SECRET=your_jwt_secret_key
+# GOOGLE_API_KEY=your_google_generative_ai_key
+
+# Install dependencies
+go mod download
+
+# Run database migrations
+go run ./cmd/server.go migrate
+
+# Start the development server
+go run ./cmd/server.go
+```
+
+The backend API will be available at `http://localhost:8000`
+
+#### 3. Frontend Setup
+
+```bash
+cd ../frontend
+
+# Install dependencies
+npm install
+
+# Start development server with Vite
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+The frontend will be available at `http://localhost:5173`
+
+### Docker Development
+
+For a completely containerized development environment:
+
+```bash
+cd backend
+
+# Build and run all services with Docker Compose
+docker-compose up --build
+
+# Migrations will run automatically
+# Backend: http://localhost:8000
+# Frontend: http://localhost:5173
+```
+
+
+---
+
+## Deployment
+
+### Deploy to AWS with Docker
+
+#### 1. Build Docker Image
+```bash
+cd backend
+docker build -t clario-backend:latest .
+```
+
+Clario implements industry-standard security practices:
+
+- **Authentication**: JWT (JSON Web Tokens) for stateless API authentication
+- **Authorization**: Role-based access control (RBAC) for user endpoints
+- **Encryption**: HTTPS/TLS for all communications in production
+- **Environment Secrets**: Sensitive data managed through environment variables
+- **CORS**: Configured origin-based access control
+- **SQL Injection Prevention**: Parameterized queries using Go's database drivers
+- **Rate Limiting**: API rate limiting to prevent abuse
+- **Session Security**: Secure, HTTP-only cookies for session tokens
+
+---
+
+## AI & Productivity Features
+
+### AI Mentor Chat
+Clario leverages **Google Generative AI** to provide:
+- Personalized productivity tips and strategies
+- Real-time motivation and accountability
+- Intelligent task suggestions based on user behavior
+- Context-aware responses using chat history
+
+### Analytics & Insights
+- **GitHub-style Heatmap**: Visualize streak patterns
+- **Monthly Progress**: Track daily task completion for the current month
+- **Current Streak**: Monitor consecutive days with completed tasks
+- **Productivity Trends**: Visual insights into work patterns and consistency
+
+---
+
+## API Documentation
+
+### Authentication Endpoints
+- `POST /api/auth/register` — Register a new user
+- `POST /api/auth/login` — Authenticate and receive JWT token
+- `POST /api/auth/refresh` — Refresh access token
+
+### Task Endpoints
+- `GET /api/tasks` — Retrieve all user tasks
+- `POST /api/tasks` — Create a new task
+- `PUT /api/tasks/:id` — Update an existing task
+- `DELETE /api/tasks/:id` — Delete a task
+- `PUT /api/tasks/:id/complete` — Mark task as complete
+
+### Chat Endpoints
+- `GET /api/chat/history` — Retrieve chat history
+- `POST /api/chat/message` — Send a message to AI mentor
+- `GET /api/chat/analytics` — Get chat-based productivity insights
+
+---
+
+## Tech Stack
+
+### Frontend
+- **Framework**: [React](https://react.dev/) 18+ with TypeScript for type-safe UI development
+- **Build Tool**: [Vite](https://vitejs.dev/) for fast development and optimized builds
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [PostCSS](https://postcss.org/) for modern, responsive design
+- **State Management**: React Context API for auth and global state
+- **HTTP Client**: Custom API service with axios integration
+
+### Backend
+- **Language**: [Go](https://golang.org/) 1.24+ for high-performance server logic
+- **Web Framework**: [Chi](https://github.com/go-chi/chi) for lightweight HTTP routing
+- **Database**: [PostgreSQL](https://www.postgresql.org/) 14+ for reliable data persistence
+- **Authentication**: JWT-based authentication with secure token generation
+- **AI Integration**: Google Generative AI API for intelligent mentor chat functionality
+
+### Infrastructure & DevOps
+- **Frontend Hosting**: [Vercel](https://vercel.com/) for fast, global frontend deployment
+  - Automatic Git-based deployments
+  - Global CDN with edge functions
+  - Zero-config HTTPS and security
+  - Built-in analytics and performance monitoring
+  
+- **Backend Hosting**: [AWS EC2](https://aws.amazon.com/ec2/) (Ubuntu instance)
+  - Go application running in Docker containers
+  - Elastic IP for static IP address
+  - Security groups for network access control
+  
+- **Containerization**: [Docker](https://www.docker.com/)
+  - Consistent development and production environments
+  - Docker Compose for local multi-container setup
+  - Container orchestration on EC2
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for full details.
+
+You are free to use, modify, and distribute this project, provided you include the original license notice.
+
+---
+
+<div align="center">
+
+**Clario** — Built with ❤️ to help you achieve your best self
+
+</div>
+</file>
+
+<file path="backend/internal/repository/task_repository.go">
+package repository
+
+import (
+	"database/sql"
+	"log"
+	"time"
+
+	"github.com/Philip-Machar/clario/internal/models"
+)
+
+type TaskRepository struct {
+	DB *sql.DB
+}
+
+// A function to instantiate TaskRepository struct
+func NewTaskRepository(db *sql.DB) *TaskRepository {
+	return &TaskRepository{DB: db}
+}
+
+// method to insert a new row into postgreSQL
+func (r *TaskRepository) Create(task *models.Task) error {
+	query := `
+		INSERT INTO tasks (title, description, status, priority, due_date, user_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at, updated_at
+	`
+	log.Printf("Executing task creation query: title=%s, userID=%d, status=%s, priority=%s\n",
+		task.Title, task.UserID, task.Status, task.Priority)
+
+	err := r.DB.QueryRow(query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.Priority,
+		task.DueDate,
+		task.UserID,
+	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
+
+	if err != nil {
+		log.Printf("Database error during task creation: %v\n", err)
+		return err
+	}
+
+	log.Printf("Task created successfully in DB with ID: %d\n", task.ID)
+	return nil
+}
+
+// method to get data of all the rows in our tasks table
+func (r *TaskRepository) GetAll(userID int) ([]models.Task, error) {
+	query := `SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks WHERE user_id = $1 ORDER BY id DESC`
+
+	rows, err := r.DB.Query(query, userID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []models.Task
+	for rows.Next() {
+		var t models.Task
+		var due sql.NullTime
+		var completed sql.NullTime
+
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority, &due, &completed, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+
+		if due.Valid {
+			t.DueDate = &due.Time
+		}
+
+		if completed.Valid {
+			t.CompletedAt = &completed.Time
+		}
+
+		tasks = append(tasks, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+func (r *TaskRepository) Delete(id, userID int) error {
+	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
+
+	_, err := r.DB.Exec(query, id, userID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *TaskRepository) Update(task *models.Task) error {
+	query := `
+		UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, updated_at = NOW()
+		WHERE id = $6 AND user_id = $7
+		RETURNING updated_at
+	`
+	return r.DB.QueryRow(query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.Priority,
+		task.DueDate,
+		task.ID,
+		task.UserID,
+	).Scan(&task.UpdatedAt)
+}
+
+func (r *TaskRepository) UpdateStatus(id int, status string, userID int) error {
+	var query string
+
+	if status == "complete" {
+		query = `UPDATE tasks SET status = $1, updated_at = NOW(), completed_at = NOW() WHERE id = $2 AND user_id = $3`
+	} else {
+		query = `UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+	}
+
+	_, err := r.DB.Exec(query, status, id, userID)
+
+	return err
+}
+
+// GetMonthlyHeatmapData returns daily task completion counts for the last 28 days
+func (r *TaskRepository) GetMonthlyHeatmapData(userID int) (map[string]int, error) {
+	// Get data for the last 28 days
+	query := `
+		SELECT DATE(completed_at) as completion_date, COUNT(*) as task_count
+		FROM tasks
+		WHERE user_id = $1 
+		  AND completed_at IS NOT NULL
+		  AND completed_at >= NOW() - INTERVAL '28 days'
+		GROUP BY DATE(completed_at)
+		ORDER BY DATE(completed_at) DESC
+	`
+
+	rows, err := r.DB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Map date strings to task counts
+	heatmapData := make(map[string]int)
+
+	for rows.Next() {
+		var date time.Time
+		var count int
+
+		if err := rows.Scan(&date, &count); err != nil {
+			return nil, err
+		}
+
+		// Format date as YYYY-MM-DD
+		dateStr := date.Format("2006-01-02")
+		heatmapData[dateStr] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return heatmapData, nil
+}
+
+func (r *TaskRepository) GetCurrentStreaks(userID int) (int, error) {
+	query := `
+		SELECT DATE(completed_at), COUNT(*)
+		FROM tasks
+		WHERE completed_at IS NOT NULL AND completed_at <= due_date AND user_id = $1
+		GROUP BY DATE(completed_at)
+		ORDER BY DATE(completed_at) DESC;
+	`
+
+	rows, err := r.DB.Query(query, userID)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer rows.Close()
+
+	var streak int
+	var lastDay time.Time
+
+	for rows.Next() {
+		var day time.Time
+		var count int
+
+		if err := rows.Scan(&day, &count); err != nil {
+			return 0, err
+		}
+
+		if streak == 0 {
+			streak = 1
+			lastDay = day
+			continue
+		}
+
+		if day.Equal(lastDay.AddDate(0, 0, -1)) {
+			streak++
+			lastDay = day
+		} else {
+			break
+		}
+	}
+
+	return streak, nil
+}
+</file>
+
+<file path="backend/cmd/server/main.go">
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/Philip-Machar/clario/internal/db"
+	"github.com/Philip-Machar/clario/internal/handlers"
+	authMiddleware "github.com/Philip-Machar/clario/internal/middleware"
+	"github.com/Philip-Machar/clario/internal/repository"
+	"github.com/Philip-Machar/clario/internal/service"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	//loads env file to system variables to allow os.Getenv ot read its variables
+	err := godotenv.Load()
+
+	if err != nil {
+		log.Println("No .env file found")
+	}
+
+	//connect to db
+	database := db.Connect()
+	defer database.Close()
+
+	//Repositories
+	taskRepo := repository.NewTaskRepository(database)
+	userRepo := repository.NewUserRepository(database)
+	chatRepo := repository.NewChatRepository(database)
+
+	//services
+	aiService := service.NewAIService(chatRepo, taskRepo)
+
+	//Handlers
+	taskHandler := handlers.NewTaskHandler(taskRepo)
+	authHandler := handlers.NewAuthHandler(userRepo)
+	aiHandler := handlers.NewAIHandler(aiService)
+
+	//create a new router
+	r := chi.NewRouter()
+
+	//cors middleware
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{
+			"http://localhost:5173",
+			"https://*.vercel.app",
+		},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	//Global Middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	//PUBLIC ROUTES
+	r.Post("/register", authHandler.RegisterUser)
+	r.Post("/login", authHandler.Login)
+
+	//PROCTECTED ROUTES (token required)
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+
+		r.Post("/create/task", taskHandler.Create)
+		r.Get("/tasks", taskHandler.GetAll)
+		r.Delete("/task/{id}", taskHandler.Delete)
+		r.Put("/task/{id}", taskHandler.Update)
+		r.Put("/task/{id}/status", taskHandler.UpdateStatus)
+		r.Get("/streak", taskHandler.GetCurrentStreaks)
+		r.Get("/heatmap", taskHandler.GetMonthlyHeatmap)
+		r.Post("/chat", aiHandler.ChatWithMentor)
+	})
+
+	//starting server and listening ap port 8080
+	fmt.Println("Server running on http://localhost:8080...")
+	http.ListenAndServe(":8080", r)
+
+}
+</file>
+
+</files>

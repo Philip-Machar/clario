@@ -27,10 +27,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedUser = localStorage.getItem('user');
 
         if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+            try {
+                setToken(storedToken);
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
+                // Corrupted storage — clear it and force re-login
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
         }
-        setIsLoading(false); // We are done checking
+        setIsLoading(false);
     }, []);
 
     // Login Action
